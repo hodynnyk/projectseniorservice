@@ -51,15 +51,59 @@ export async function handleTelegramWebhook(env, request) {
   return new Response('ok');
 }
 
+export async function resolveTelegramWebhookUrl(env) {
+  const publicBaseUrl = await getSetting(env, 'PUBLIC_BASE_URL', env.PUBLIC_BASE_URL || '');
+  const webhookSecret = await getApiKeyValue(env, 'TELEGRAM_WEBHOOK_SECRET') || env.TELEGRAM_WEBHOOK_SECRET || 'telegram';
+  if (!publicBaseUrl) return { ok: false, error: 'PUBLIC_BASE_URL is required' };
+  return {
+    ok: true,
+    publicBaseUrl: publicBaseUrl.replace(/\/+$/, ''),
+    webhookSecret,
+    url: `${publicBaseUrl.replace(/\/+$/, '')}/telegram/webhook/${encodeURIComponent(webhookSecret)}`
+  };
+}
+
 export async function setTelegramWebhook(env) {
   const token = await getApiKeyValue(env, 'TELEGRAM_BOT_TOKEN');
-  const publicBaseUrl = await getSetting(env, 'PUBLIC_BASE_URL', env.PUBLIC_BASE_URL || '');
-  const webhookSecret = await getApiKeyValue(env, 'TELEGRAM_WEBHOOK_SECRET') || 'telegram';
-  if (!token || !publicBaseUrl) return { ok: false, error: 'TELEGRAM_BOT_TOKEN and PUBLIC_BASE_URL are required' };
-  const url = `${publicBaseUrl.replace(/\/+$/, '')}/telegram/webhook/${encodeURIComponent(webhookSecret)}`;
-  const res = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url, drop_pending_updates: true, allowed_updates: ['message', 'edited_message'] }) });
+  if (!token) return { ok: false, error: 'TELEGRAM_BOT_TOKEN is required' };
+  const target = await resolveTelegramWebhookUrl(env);
+  if (!target.ok) return target;
+  const res = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      url: target.url,
+      drop_pending_updates: true,
+      allowed_updates: ['message', 'edited_message']
+    })
+  });
   const data = await res.json().catch(() => ({}));
-  return { ok: res.ok && data.ok !== false, url, telegram: data };
+  return { ok: res.ok && data.ok !== false, url: target.url, telegram: data };
+}
+
+export async function getTelegramWebhookStatus(env) {
+  const token = await getApiKeyValue(env, 'TELEGRAM_BOT_TOKEN');
+  const target = await resolveTelegramWebhookUrl(env);
+  if (!token) return { ok: false, configured: false, error: 'TELEGRAM_BOT_TOKEN is missing', expectedUrl: target.url || '' };
+  const [meRes, infoRes] = await Promise.allSettled([
+    fetch(`https://api.telegram.org/bot${token}/getMe`).then(r => r.json()),
+    fetch(`https://api.telegram.org/bot${token}/getWebhookInfo`).then(r => r.json())
+  ]);
+  const me = meRes.status === 'fulfilled' ? meRes.value : { ok: false, description: meRes.reason?.message || 'getMe failed' };
+  const info = infoRes.status === 'fulfilled' ? infoRes.value : { ok: false, description: infoRes.reason?.message || 'getWebhookInfo failed' };
+  const currentUrl = info?.result?.url || '';
+  const expectedUrl = target.url || '';
+  return {
+    ok: !!me.ok && !!info.ok,
+    configured: !!currentUrl && (!expectedUrl || currentUrl === expectedUrl),
+    bot: me?.result ? { id: me.result.id, username: me.result.username, first_name: me.result.first_name } : null,
+    expectedUrl,
+    currentUrl,
+    pendingUpdateCount: info?.result?.pending_update_count ?? null,
+    lastErrorDate: info?.result?.last_error_date || null,
+    lastErrorMessage: info?.result?.last_error_message || '',
+    telegram: { me, webhookInfo: info }
+  };
 }
 
 export async function sendMessage(env, chatId, text, replyMarkup = undefined) {

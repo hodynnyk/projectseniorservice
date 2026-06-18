@@ -27,7 +27,7 @@ async function hit(path, init) {
 
 await hit('/api/health');
 const route = await hit('/route-check');
-if (route.data.version !== 'sonya-v4-ui-login-fix') throw new Error('Wrong route-check version');
+if (route.data.version !== 'sonya-v5-telegram-autowebhook') throw new Error('Wrong route-check version');
 const adminHtml = await hit('/admin');
 if (!String(adminHtml.data).includes('Соня Admin')) throw new Error('/admin did not return Admin UI');
 const miniHtml = await hit('/miniapp');
@@ -42,4 +42,4 @@ const admin = await hit('/api/auth/admin-secret', { method: 'POST', headers: { '
 if (admin.data.user.role !== 'owner') throw new Error('Default admin-secret login failed');
 const item = await hit('/api/items', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + autoLogin.data.token }, body: JSON.stringify({ type: 'task', title: 'Smoke task', visibility: 'shared' }) });
 if (!item.data.item?.id) throw new Error('Item create failed');
-console.log('SMOKE OK: v4 UI/login/bootstrap paths passed');
+console.log('SMOKE OK: v5 telegram/webhook/admin paths passed');

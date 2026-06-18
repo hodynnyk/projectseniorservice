@@ -55,12 +55,12 @@ Smoke test verifies with in-memory KV:
 - login/session persistence;
 - no horizontal broken layout.
 
-## v4 UI/login fix
+## v5 Telegram auto-webhook
 
 - `/admin`, `/setup`, `/__admin`, `/sonya-admin`, `/admin-panel` відкривають саме Admin UI.
 - Виправлено чорний екран через JS syntax error у Admin Panel.
 - Виправлено Mini App login/offline: якщо система ще не налаштована, `owner2026` автоматично створює перший Owner, а `sonya-admin-2026` автоматично створює First Setup для Admin.
-- `/route-check` має показувати `sonya-v4-ui-login-fix`.
+- `/route-check` має показувати `sonya-v5-telegram-autowebhook`.
 
 Стартові доступи після чистого KV:
 

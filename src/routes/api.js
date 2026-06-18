@@ -9,7 +9,7 @@ import { createMailAccount, listMailAccounts, getInbox, sendMail } from '../modu
 import { uploadFile, listFiles, downloadFile } from '../modules/files.js';
 import { googleAuthUrl, googleCallback, googleStatus } from '../modules/google.js';
 import { runReminderSweep } from '../services/reminders.js';
-import { setTelegramWebhook } from '../telegram/bot.js';
+import { setTelegramWebhook, getTelegramWebhookStatus } from '../telegram/bot.js';
 
 export async function handleApi(env, request, ctx) {
   const url = new URL(request.url);
@@ -96,7 +96,15 @@ export async function handleApi(env, request, ctx) {
   if (path === '/api/admin/invites' && method === 'POST') return json({ ok: true, invite: await createInvite(env, user, await readJson(request)) });
   if (path === '/api/admin/activity' && method === 'GET') return json({ ok: true, logs: await listActivity(env, user, Object.fromEntries(url.searchParams)) });
   if (path === '/api/admin/keys' && method === 'GET') return json({ ok: true, keys: await listApiKeys(env) });
-  if (path === '/api/admin/keys' && method === 'POST') return json({ ok: true, key: await setApiKey(env, user, await readJson(request)) });
+  if (path === '/api/admin/keys' && method === 'POST') {
+    const body = await readJson(request);
+    const key = await setApiKey(env, user, body);
+    let telegramWebhook = null;
+    if (['TELEGRAM_BOT_TOKEN','TELEGRAM_WEBHOOK_SECRET','PUBLIC_BASE_URL'].includes(String(key.name || body.name || '').toUpperCase())) {
+      telegramWebhook = await setTelegramWebhook(env).catch(err => ({ ok: false, error: err?.message || 'webhook setup failed' }));
+    }
+    return json({ ok: true, key, telegramWebhook });
+  }
   const keyMatch = path.match(/^\/api\/admin\/keys\/([^/]+)$/);
   if (keyMatch && method === 'DELETE') return json(await deleteApiKey(env, user, keyMatch[1]));
   if (path === '/api/admin/modules' && method === 'GET') return json({ ok: true, modules: await listModules(env) });
@@ -105,6 +113,7 @@ export async function handleApi(env, request, ctx) {
   if (path === '/api/admin/export') return json(await exportAll(env), 200, { 'content-disposition': `attachment; filename="projectseniorservice-backup-${Date.now()}.json"` });
   if (path === '/api/admin/run-reminders' && method === 'POST') return json({ ok: true, result: await runReminderSweep(env) });
   if (path === '/api/admin/telegram/set-webhook' && method === 'POST') return json(await setTelegramWebhook(env));
+  if (path === '/api/admin/telegram/status' && method === 'GET') return json(await getTelegramWebhookStatus(env));
 
   return error('Not found', 404);
 }
