@@ -67,7 +67,7 @@ export async function deleteRecord(env, type, id, indexes = []) {
 export async function ensureModules(env) {
   const existing = await getJson(env, 'modules');
   if (existing) return existing;
-  const keys = ['mail','calendar','tasks','reminders','memory','contacts','files','family','expenses','car','health','content','qa','admin','search','backup','google','telegram','openai'];
+  const keys = ['mail','calendar','tasks','reminders','memory','contacts','files','family','expenses','car','health','content','qa','admin','search','backup','google','telegram','openai','weather'];
   const modules = keys.map(moduleKey => ({
     key: moduleKey,
     enabled: true,

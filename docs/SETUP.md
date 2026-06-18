@@ -1,87 +1,27 @@
-# Setup · projectseniorservice / Соня
+# SETUP · projectseniorservice v8
 
-## Найпростіший шлях без коду
+1. Залий ZIP у GitHub repository `projectseniorservice`.
+2. Cloudflare автоматично виконає `bun install` / `npx wrangler deploy`.
+3. Перевір `/route-check`: має бути `sonya-v8-no-r2-personality-family-reset`.
+4. Відкрий `/admin`.
+5. Перший вхід: `sonya-admin-2026` або `owner2026`.
+6. API Keys → додай:
+   - `PUBLIC_BASE_URL` = твій workers.dev URL
+   - `TELEGRAM_BOT_TOKEN`
+   - `TELEGRAM_WEBHOOK_SECRET`
+   - `OPENAI_API_KEY`
+7. Натисни `Set / Repair Telegram webhook`.
+8. Напиши боту `/start owner2026`.
+9. Перевір: `погода Обухів`, `що сьогодні`, `знайди ...`.
+10. Фото/документи: надсилай тільки з явною командою, наприклад `збережи як документ`. У v8 створюється тільки картка, без R2.
 
-1. Заливаєш цей ZIP у GitHub repository `projectseniorservice`.
-2. Чекаєш, поки Cloudflare deploy пройде без `ERROR`.
-3. Відкриваєш:
+## Family reset
 
-```text
-https://projectseniorservice.bot-worker-tenj.workers.dev/route-check
-```
+Admin → Users → Reset Family account.
 
-Має бути:
+- Safe reset: скидає Telegram, сесії, приватні items/files/mail Family.
+- Hard reset: додатково чистить shared objects, створені Family.
 
-```json
-{
-  "ok": true,
-  "version": "sonya-v3-admin-hotfix"
-}
-```
+## R2
 
-4. Відкриваєш адмінку:
-
-```text
-https://projectseniorservice.bot-worker-tenj.workers.dev/admin
-```
-
-Якщо браузер чомусь тримає стару сторінку, відкрий backup:
-
-```text
-https://projectseniorservice.bot-worker-tenj.workers.dev/setup
-```
-
-5. На First Setup екрані будуть уже підставлені прості стартові значення:
-
-```text
-Admin secret: sonya-admin-2026
-Owner access code: owner2026
-Family access code: family2026
-```
-
-Можеш змінити або просто натиснути `Save First Setup & Enter Admin`.
-
-6. Після цього:
-
-- Admin Panel: `/admin`
-- Mini App: `/miniapp`
-- Owner login у Mini App: `owner2026`, якщо не міняв
-- Family login у Mini App: `family2026`, якщо не міняв
-
-## Якщо замість Admin бачиш Family OS
-
-Це означає, що відкрився Mini App або браузер тримає старий HTML.
-
-Зроби по черзі:
-
-1. Відкрий `/setup`.
-2. Натисни Ctrl+F5.
-3. Відкрий інкогніто.
-4. Перевір `/route-check`; якщо немає `sonya-v3-admin-hotfix`, значить у GitHub ще не залитий цей ZIP.
-
-## Куди вставляти ключі
-
-Після First Setup відкрий Admin → API Keys і встав:
-
-- `TELEGRAM_BOT_TOKEN`
-- `TELEGRAM_WEBHOOK_SECRET`
-- `OPENAI_API_KEY`
-- `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
-- `RESEND_API_KEY`, якщо потрібна відправка пошти
-
-
-## v5 Telegram auto-webhook
-
-- `/admin`, `/setup`, `/__admin`, `/sonya-admin`, `/admin-panel` відкривають саме Admin UI.
-- Виправлено чорний екран через JS syntax error у Admin Panel.
-- Виправлено Mini App login/offline: якщо система ще не налаштована, `owner2026` автоматично створює перший Owner, а `sonya-admin-2026` автоматично створює First Setup для Admin.
-- `/route-check` має показувати `sonya-v5-telegram-autowebhook`.
-
-Стартові доступи після чистого KV:
-
-```text
-Admin secret: sonya-admin-2026
-Owner access code: owner2026
-Family access code: family2026
-```
+R2 у v8 вимкнено повністю. У `wrangler.jsonc` немає `r2_buckets`. Це зроблено за Owner policy: не витрачати 10 GB/month і не ризикувати перевищенням.

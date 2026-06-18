@@ -1,45 +1,17 @@
-# Cloudflare free tier notes
+# Cloudflare free tier notes · v8
 
-This build is designed to be light.
+## KV
 
-## KV-first reason
+KV залишається головним storage у v8. Записи треба берегти: не робити бездумне автозбереження кожного повідомлення.
 
-KV has enough capacity for a private family assistant with tasks, notes, small metadata and logs. It avoids requiring database migrations for the first deploy.
+## D1
 
-## Limits considered
+D1 binding підключений як `DB`, але v8 KV-first. Це дозволяє не ламати поточний deploy, а пізніше перенести важкі таблиці в SQL.
 
-- Activity log is compacted to about 300 recent records.
-- Item list reads are capped.
-- Reminder sweep processes a limited batch per cron run.
-- Files are metadata-only unless R2 is later enabled.
-- OpenAI calls are made only when local intent routing is not enough.
+## R2
 
-## When to add D1
+R2 вимкнено. Це прибирає ризик перевищити 10 GB-month/month і забирає потребу завантажувати/стискати фото на сервері.
 
-Add D1-heavy logic later when you need:
+## Voice
 
-- thousands of records;
-- advanced filters;
-- relational reports;
-- expense analytics;
-- faster admin tables.
-
-The D1 binding is already configured:
-
-```txt
-binding: DB
-name: projectseniorservice
-id: 41ef1a3a-903c-494f-aff4-af2ff9d2ceef
-```
-
-## When to add R2
-
-Add R2 when you want real binary storage for:
-
-- photos;
-- PDFs;
-- scanned documents;
-- checks;
-- warranties.
-
-v2 stores file metadata and is prepared for R2 extension later.
+Voice/audio вимкнено, бо потребує скачування файлів із Telegram і transcription API. Для стабільності й економії використовується text-first bot.

@@ -1,4 +1,4 @@
-import { getJson, putJson, upsertRecord, listByIndex } from '../storage/kv.js';
+import { getJson, putJson, upsertRecord, listByIndex, deleteRecord } from '../storage/kv.js';
 import { hashAdmin, hashCode, randomId, timingSafeStringEqual, hmacSha256Bytes, bytesToHex } from '../utils/crypto.js';
 import { nowIso } from '../utils/dates.js';
 import { logActivity } from './activity.js';
@@ -141,7 +141,9 @@ export async function getUserFromRequest(env, request) {
   const session = await getJson(env, `sessions:${token}`);
   if (!session || session.expiresAt < nowIso()) return null;
   const user = await getUser(env, session.userId);
-  return user ? publicUser(user) : null;
+  if (!user) return null;
+  if (Number(session.sessionVersion || 0) !== Number(user.sessionVersion || 0)) return null;
+  return publicUser(user);
 }
 
 export async function listUsers(env) {
@@ -157,6 +159,58 @@ export async function createInvite(env, user, body = {}) {
   await setSetup(env, { ...setup, ...patch });
   await logActivity(env, { userId: user.id, source: 'admin', module: 'auth', action: 'invite_update', message: `${role} access code updated` });
   return { role, code };
+}
+
+
+export async function resetFamilyAccount(env, owner, options = {}) {
+  if (owner?.role !== 'owner') throw Object.assign(new Error('Owner access required'), { status: 403 });
+  const family = await getUser(env, 'user_family');
+  if (!family) return { ok: true, reset: false, reason: 'Family user does not exist yet' };
+  const mode = String(options.mode || 'safe');
+  const deletePrivateData = options.deletePrivateData !== false;
+  const deleteSharedData = mode === 'hard' || options.deleteSharedData === true;
+  const now = nowIso();
+  const stats = { privateItemsDeleted: 0, sharedItemsDeleted: 0, filesDeleted: 0, mailDeleted: 0, sessionsRevoked: true };
+
+  if (deletePrivateData || deleteSharedData) {
+    const items = await listByIndex(env, 'items:ids', 'items', 5000);
+    for (const item of items) {
+      if (item.owner !== 'user_family') continue;
+      if (item.visibility === 'shared' && !deleteSharedData) continue;
+      await deleteRecord(env, 'items', item.id, [`items:user:${item.owner}`]);
+      if (item.visibility === 'shared') stats.sharedItemsDeleted++; else stats.privateItemsDeleted++;
+    }
+
+    const mails = await listByIndex(env, 'mail:ids', 'mail', 1000);
+    for (const mail of mails) {
+      if (mail.owner !== 'user_family') continue;
+      if (mail.visibility === 'shared' && !deleteSharedData) continue;
+      await deleteRecord(env, 'mail', mail.id, [`mail:user:${mail.owner}`]);
+      stats.mailDeleted++;
+    }
+
+    const files = await listByIndex(env, 'files:ids', 'files', 1000);
+    const { deleteFileRecordAndObject } = await import('../modules/files.js');
+    for (const file of files) {
+      if (file.owner !== 'user_family') continue;
+      if (file.visibility === 'shared' && !deleteSharedData) continue;
+      await deleteFileRecordAndObject(env, owner, file.id, 'admin_family_reset');
+      stats.filesDeleted++;
+    }
+  }
+
+  const resetUser = await createOrUpdateUser(env, {
+    ...family,
+    displayName: String(options.displayName || 'Family User'),
+    username: 'family',
+    telegramId: '',
+    lastLoginAt: null,
+    resetAt: now,
+    sessionVersion: Number(family.sessionVersion || 0) + 1,
+    privateModeDefault: true
+  });
+  await logActivity(env, { userId: owner.id, source: 'admin', module: 'users', action: 'family_reset', message: mode, metadata: stats });
+  return { ok: true, reset: true, user: publicUser(resetUser), mode, stats };
 }
 
 export async function verifyTelegramInitData(initData, botToken) {
@@ -184,7 +238,7 @@ export async function getUserByTelegram(env, telegramId) {
 async function createSession(env, user, source) {
   const token = randomId('sess');
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 3600_000).toISOString();
-  await putJson(env, `sessions:${token}`, { token, userId: user.id, source, createdAt: nowIso(), expiresAt }, { expirationTtl: SESSION_DAYS * 24 * 3600 });
+  await putJson(env, `sessions:${token}`, { token, userId: user.id, source, sessionVersion: Number(user.sessionVersion || 0), createdAt: nowIso(), expiresAt }, { expirationTtl: SESSION_DAYS * 24 * 3600 });
   return { token, user: publicUser(user), expiresAt };
 }
 
@@ -198,7 +252,9 @@ async function createOrUpdateUser(env, data) {
     privateModeDefault: data.privateModeDefault !== false,
     createdAt: data.createdAt || nowIso(),
     updatedAt: nowIso(),
-    lastLoginAt: data.lastLoginAt || null
+    lastLoginAt: data.lastLoginAt || null,
+    sessionVersion: Number(data.sessionVersion || 0),
+    resetAt: data.resetAt || null
   };
   await upsertRecord(env, 'users', user.id, user, []);
   return user;
@@ -210,6 +266,6 @@ async function getUser(env, id) {
 
 function publicUser(user) {
   if (!user) return null;
-  const { id, role, displayName, username, telegramId, privateModeDefault, createdAt, updatedAt, lastLoginAt } = user;
-  return { id, role, displayName, username, telegramId, privateModeDefault, createdAt, updatedAt, lastLoginAt };
+  const { id, role, displayName, username, telegramId, privateModeDefault, createdAt, updatedAt, lastLoginAt, resetAt, sessionVersion } = user;
+  return { id, role, displayName, username, telegramId, privateModeDefault, createdAt, updatedAt, lastLoginAt, resetAt, sessionVersion };
 }

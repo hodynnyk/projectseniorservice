@@ -1,12 +1,12 @@
 import { json, error, readJson, sanitizeString, cookie, getClientInfo, escapeHtml } from '../utils/http.js';
 import { ensureStorage, exportAll } from '../storage/kv.js';
-import { firstSetup, isConfigured, requireUser, loginWithAccessCode, loginWithAdminSecret, createInvite, verifyTelegramInitData, listUsers } from '../services/auth.js';
+import { firstSetup, isConfigured, requireUser, loginWithAccessCode, loginWithAdminSecret, createInvite, verifyTelegramInitData, listUsers, resetFamilyAccount } from '../services/auth.js';
 import { listItems, createItem, updateItem, deleteItem, todaySnapshot, searchItems } from '../modules/items.js';
 import { handleNaturalInput } from '../ai/agent.js';
 import { listActivity } from '../services/activity.js';
 import { listApiKeys, setApiKey, deleteApiKey, listModules, setModuleEnabled, setSetting, getSetup, getApiKeyValue } from '../modules/settings.js';
 import { createMailAccount, listMailAccounts, getInbox, sendMail } from '../modules/mail.js';
-import { uploadFile, listFiles, downloadFile } from '../modules/files.js';
+import { uploadFile, listFiles, downloadFile, r2Status } from '../modules/files.js';
 import { googleAuthUrl, googleCallback, googleStatus } from '../modules/google.js';
 import { runReminderSweep } from '../services/reminders.js';
 import { setTelegramWebhook, getTelegramWebhookStatus } from '../telegram/bot.js';
@@ -19,7 +19,7 @@ export async function handleApi(env, request, ctx) {
 
   if (path === '/api/health') {
     const setup = await getSetup(env);
-    return json({ ok: true, service: 'projectseniorservice', time: new Date().toISOString(), configured: !!setup?.configured, bindings: { kv: !!env.SONYA_KV, d1: !!env.DB, r2: !!env.SONYA_FILES } });
+    return json({ ok: true, service: 'projectseniorservice', time: new Date().toISOString(), configured: !!setup?.configured, bindings: { kv: !!env.SONYA_KV, d1: !!env.DB, files: 'metadata_only' } });
   }
 
   if (path === '/api/setup/status') return json({ ok: true, configured: await isConfigured(env), setup: sanitizeSetup(await getSetup(env)) });
@@ -79,7 +79,7 @@ export async function handleApi(env, request, ctx) {
   const sendMatch = path.match(/^\/api\/mail\/accounts\/([^/]+)\/send$/);
   if (sendMatch && method === 'POST') return json(await sendMail(env, user, sendMatch[1], await readJson(request)));
 
-  if (path === '/api/files' && method === 'GET') return json({ ok: true, files: await listFiles(env, user) });
+  if (path === '/api/files' && method === 'GET') return json({ ok: true, files: await listFiles(env, user), r2: await r2Status(env) });
   if (path === '/api/files' && method === 'POST') return json({ ok: true, file: await uploadFile(env, user, request) });
   const fileMatch = path.match(/^\/api\/files\/([^/]+)\/download$/);
   if (fileMatch && method === 'GET') return downloadFile(env, user, fileMatch[1]);
@@ -89,10 +89,12 @@ export async function handleApi(env, request, ctx) {
 
   if (path.startsWith('/api/admin/')) assertOwner(user);
   if (path === '/api/admin/overview') {
-    const [users, modules, keys, logs, setup] = await Promise.all([listUsers(env), listModules(env), listApiKeys(env), listActivity(env, user, { limit: 30 }), getSetup(env)]);
-    return json({ ok: true, overview: { users, modules, keys, logs, setup: sanitizeSetup(setup), bindings: { kv: !!env.SONYA_KV, d1: !!env.DB, r2: !!env.SONYA_FILES } } });
+    const [users, modules, keys, logs, setup, r2] = await Promise.all([listUsers(env), listModules(env), listApiKeys(env), listActivity(env, user, { limit: 30 }), getSetup(env), r2Status(env)]);
+    return json({ ok: true, overview: { users, modules, keys, logs, setup: sanitizeSetup(setup), r2, bindings: { kv: !!env.SONYA_KV, d1: !!env.DB, files: 'metadata_only' } } });
   }
   if (path === '/api/admin/users' && method === 'GET') return json({ ok: true, users: await listUsers(env) });
+  if (path === '/api/admin/users/family/reset' && method === 'POST') return json(await resetFamilyAccount(env, user, await readJson(request)));
+  if (path === '/api/admin/r2/status' && method === 'GET') return json(await r2Status(env));
   if (path === '/api/admin/invites' && method === 'POST') return json({ ok: true, invite: await createInvite(env, user, await readJson(request)) });
   if (path === '/api/admin/activity' && method === 'GET') return json({ ok: true, logs: await listActivity(env, user, Object.fromEntries(url.searchParams)) });
   if (path === '/api/admin/keys' && method === 'GET') return json({ ok: true, keys: await listApiKeys(env) });

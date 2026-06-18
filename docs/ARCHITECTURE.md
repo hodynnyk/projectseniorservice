@@ -1,98 +1,39 @@
-# Architecture
+# Architecture · projectseniorservice v8
 
-## Product architecture
+## Interfaces
 
-`projectseniorservice` is a private family Соня OS with three faces and one core:
+- Telegram Bot: розмовний інтерфейс Соні.
+- Telegram Mini App: сімейна панель задач, пам’яті, файлів-карток, пошти.
+- Web Admin: ключі, users, Family reset, Telegram webhook, logs, modules, backup.
 
-1. Telegram Bot — fast natural-language conversation.
-2. Telegram Mini App — mobile control panel inside Telegram.
-3. Web Admin — private browser admin center.
+## Storage
 
-All three use the same Cloudflare Worker API, the same KV storage, the same users, tasks, memory, mail accounts, settings and activity log.
+- KV `SONYA_KV`: головний runtime storage для settings/users/sessions/items/activity.
+- D1 `DB`: підключений для наступної SQL-еволюції, але v8 все ще KV-first для стабільного deploy.
+- R2: відключений. Binary-файли не зберігаються.
 
-## Technical architecture
+## AI behavior
 
-```txt
-Cloudflare Worker
-├─ /telegram/webhook/:secret
-├─ /miniapp
-├─ /admin
-├─ /api/*
-├─ scheduled cron every 5 minutes
-├─ KV binding SONYA_KV
-└─ optional D1 binding DB
-```
+- GPT через OpenAI API для відповідей.
+- Weather через окремий tool, не через вигадування GPT.
+- Life Inbox не зберігає все автоматично. Автозбереження тільки при явному намірі: “запиши”, “збережи”, “додай”, “нагадай”, “створи”.
+- Якщо текст схожий на запис, але намір не явний, Соня уточнює.
 
-## Storage strategy
+## Owner persona
 
-v2 is KV-first because the user wants to upload ZIP to GitHub and avoid technical blockers.
+Owner отримує окремий стиль: коротко, тепло, персонально, з делікатними звертаннями “сер/господин”. Після довгої паузи Соня вітається. Family user отримує нейтральний сімейний стиль.
 
-KV keys use prefix:
+## Telegram
 
-```txt
-pss:v2:
-```
+- `setWebhook` доступний з Admin → API Keys.
+- Voice/audio вимкнено.
+- Photo/document не скачуються. Якщо Owner просить зберегти, створюється metadata-card із Telegram file_id.
 
-Main groups:
+## Family reset
 
-```txt
-setup
-settings
-modules
-users:ids / users:<id>
-sessions:<token>
-items:ids / items:<id>
-activity:ids / activity:<id>
-secrets:ids / secrets:<id>
-mail:ids / mail:<id>
-files:ids / files:<id>
-```
+Endpoint: `POST /api/admin/users/family/reset`.
 
-D1 is already bound in `wrangler.jsonc` and has a starter migration in `migrations/0001_schema.sql`, but v2 does not require migrations to run.
+Modes:
 
-## Data object model
-
-Most life objects use one universal item shape:
-
-```json
-{
-  "id": "item_x",
-  "type": "task | reminder | note | mail | contact | file | expense | health | car | content | qa | calendar | system | list",
-  "title": "string",
-  "content": "string",
-  "owner": "user_owner",
-  "visibility": "private | shared",
-  "createdAt": "ISO date",
-  "updatedAt": "ISO date",
-  "dueAt": "ISO date or null",
-  "priority": "low | normal | high | urgent",
-  "status": "open | in_progress | done | archived",
-  "tags": [],
-  "source": "telegram_bot | miniapp | admin | api",
-  "linkedItems": [],
-  "metadata": {}
-}
-```
-
-## Module map
-
-Modules:
-
-```txt
-mail, calendar, tasks, reminders, memory, contacts, files, family,
-expenses, car, health, content, qa, admin, search, backup, google,
-telegram, openai
-```
-
-Each module has storage, API handlers, UI entry points, permissions and activity log.
-
-## Security model
-
-- first setup creates admin secret and access codes;
-- sessions are persistent for 90 days;
-- Owner has admin access;
-- Family sees shared data and own private data;
-- API keys are masked in UI and export;
-- every meaningful action goes to activity log;
-- robots.txt blocks indexing;
-- no secrets are printed into logs by default.
+- `safe`: очищає приватні Family дані, Telegram link, sessions.
+- `hard`: очищає також shared objects, створені Family.

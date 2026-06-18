@@ -1,71 +1,37 @@
-# Testing checklist
+# TESTING · Соня v8
 
-## Automatic checks included
+## Route check
 
-GitHub Actions runs:
+```json
+{
+  "version": "sonya-v8-no-r2-personality-family-reset"
+}
+```
+
+## Manual checklist
+
+- `/route-check` показує v8.
+- `/admin` відкриває Admin UI.
+- `/miniapp` відкриває Family OS.
+- Admin login через `sonya-admin-2026`.
+- Owner login через `owner2026`.
+- API Keys → Telegram status → Set / Repair webhook.
+- Telegram `/start owner2026`.
+- Telegram `погода Обухів`.
+- Telegram voice/audio → бот відповідає, що voice вимкнено.
+- Telegram фото без підпису → бот не зберігає.
+- Telegram фото з підписом `збережи як документ` → створюється metadata-картка без R2.
+- Admin → Users → Reset Family account → safe reset працює.
+
+## Local checks used before ZIP
 
 ```bash
 npm run check
-```
-
-This verifies:
-
-- required files exist;
-- all JS/MJS files pass syntax check;
-- `src/index.js` imports successfully.
-
-Manual/local developer smoke test:
-
-```bash
 npm run smoke
 ```
 
-Smoke test verifies with in-memory KV:
-
-- `/api/health`;
-- `/api/setup/status`;
-- `/api/setup`;
-- owner session;
-- item creation.
-
-## After deploy checklist
-
-1. Open `/api/health` — should return `ok: true`.
-2. Open `/admin` — should show First Setup.
-3. Complete First Setup.
-4. Admin Overview should show KV OK and D1 OK.
-5. Add `OPENAI_API_KEY`.
-6. Add `TELEGRAM_BOT_TOKEN`.
-7. Add/confirm `PUBLIC_BASE_URL`.
-8. Click `Set Telegram webhook`.
-9. Send `/start OWNER_CODE` to bot.
-10. Send `Нагадай завтра купити ліки`.
-11. Open `/miniapp` and check Today / Tasks.
-12. Open Admin → History and confirm activity log.
-
-## UI checks
-
-- phone portrait;
-- phone landscape;
-- Telegram mobile webview;
-- desktop browser;
-- narrow viewport;
-- wide viewport;
-- empty states;
-- login/session persistence;
-- no horizontal broken layout.
-
-## v5 Telegram auto-webhook
-
-- `/admin`, `/setup`, `/__admin`, `/sonya-admin`, `/admin-panel` відкривають саме Admin UI.
-- Виправлено чорний екран через JS syntax error у Admin Panel.
-- Виправлено Mini App login/offline: якщо система ще не налаштована, `owner2026` автоматично створює перший Owner, а `sonya-admin-2026` автоматично створює First Setup для Admin.
-- `/route-check` має показувати `sonya-v5-telegram-autowebhook`.
-
-Стартові доступи після чистого KV:
+Expected:
 
 ```text
-Admin secret: sonya-admin-2026
-Owner access code: owner2026
-Family access code: family2026
+SMOKE OK: v8 no-r2/personality/family-reset paths passed
 ```
