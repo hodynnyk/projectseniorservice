@@ -1,0 +1,37 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "projectseniorservice",
+  "main": "src/index.js",
+  "compatibility_date": "2026-06-18",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "triggers": {
+    "crons": ["*/5 * * * *"]
+  },
+  "vars": {
+    "PROJECT_NAME": "projectseniorservice",
+    "ASSISTANT_NAME": "Соня",
+    "PRIMARY_UI_LANGUAGE": "uk",
+    "SECONDARY_UI_LANGUAGE": "en",
+    "UNDERSTOOD_INPUT_LANGUAGES": "uk,ru,en,surzhyk",
+    "DEFAULT_TIMEZONE": "Europe/Kyiv",
+    "OPENAI_MODEL": "gpt-4.1-mini",
+    "OPENAI_TRANSCRIBE_MODEL": "gpt-4o-mini-transcribe",
+    "QUIET_HOURS_START": "23:00",
+    "QUIET_HOURS_END": "08:00",
+    "MAIL_DOMAIN": "web-library.net"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "SONYA_KV",
+      "id": "1871b5152bde4980be4c656ac27a446e"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "projectseniorservice",
+      "database_id": "00000001-00000000-0000508e-c84a51b9d54805a1944eec20354b3faa"
+    }
+  ]
+}
