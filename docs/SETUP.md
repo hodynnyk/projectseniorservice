@@ -1,103 +1,72 @@
-# Setup guide for non-coder upload flow
+# Setup · projectseniorservice / Соня
 
-This guide assumes you only upload a ready ZIP to GitHub.
+## Найпростіший шлях без коду
 
-## 1. Upload project to GitHub
+1. Заливаєш цей ZIP у GitHub repository `projectseniorservice`.
+2. Чекаєш, поки Cloudflare deploy пройде без `ERROR`.
+3. Відкриваєш:
 
-Create/open GitHub repository:
-
-```txt
-projectseniorservice
+```text
+https://projectseniorservice.bot-worker-tenj.workers.dev/route-check
 ```
 
-Upload all files from this ZIP into the repository root.
+Має бути:
 
-## 2. Add GitHub Secrets for Cloudflare deploy
-
-In GitHub repository:
-
-```txt
-Settings → Secrets and variables → Actions → New repository secret
+```json
+{
+  "ok": true,
+  "version": "sonya-v3-admin-hotfix"
+}
 ```
 
-Add:
+4. Відкриваєш адмінку:
 
-| Secret | Meaning |
-|---|---|
-| `CLOUDFLARE_API_TOKEN` | Cloudflare token allowed to deploy Workers |
-| `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account ID |
-
-No coding is needed.
-
-## 3. GitHub Actions deploy
-
-After upload to `main` or `master`, GitHub Actions runs:
-
-```txt
-npm install → npm run check → wrangler deploy
+```text
+https://projectseniorservice.bot-worker-tenj.workers.dev/admin
 ```
 
-## 4. Open Admin Panel
+Якщо браузер чомусь тримає стару сторінку, відкрий backup:
 
-After deploy, open your Worker URL:
-
-```txt
-https://projectseniorservice.<your-subdomain>.workers.dev/admin
+```text
+https://projectseniorservice.bot-worker-tenj.workers.dev/setup
 ```
 
-If the system is new, you will see **First Setup**.
+5. На First Setup екрані будуть уже підставлені прості стартові значення:
 
-## 5. First Setup fields
-
-Fill these fields:
-
-| Field | What to enter |
-|---|---|
-| Assistant name | Соня або інша назва помічника |
-| Public Base URL | Deployed Worker URL, for example `https://projectseniorservice.xxx.workers.dev` |
-| Owner name | Your name/nickname |
-| Family name | Wife/family account name |
-| Admin secret | Long private admin password/link secret |
-| Owner access code | Code for `/start CODE` in Telegram |
-| Family access code | Code for wife/family login |
-| Telegram Bot Token | Optional now, can add later |
-| OpenAI API Key | Optional now, can add later |
-| Telegram webhook secret | Any private word, default `telegram` is acceptable for first test |
-| Google Client ID/Secret | Optional now |
-| RESEND_API_KEY | Optional only for outbound email |
-
-Click:
-
-```txt
-Save First Setup & Enter Admin
+```text
+Admin secret: sonya-admin-2026
+Owner access code: owner2026
+Family access code: family2026
 ```
 
-## 6. Set Telegram webhook
+Можеш змінити або просто натиснути `Save First Setup & Enter Admin`.
 
-After Telegram Bot Token and Public URL are saved:
+6. Після цього:
 
-```txt
-Admin → Backup → Set Telegram webhook
-```
+- Admin Panel: `/admin`
+- Mini App: `/miniapp`
+- Owner login у Mini App: `owner2026`, якщо не міняв
+- Family login у Mini App: `family2026`, якщо не міняв
 
-Then write to your bot:
+## Якщо замість Admin бачиш Family OS
 
-```txt
-/start OWNER_ACCESS_CODE
-```
+Це означає, що відкрився Mini App або браузер тримає старий HTML.
 
-For wife/family:
+Зроби по черзі:
 
-```txt
-/start FAMILY_ACCESS_CODE
-```
+1. Відкрий `/setup`.
+2. Натисни Ctrl+F5.
+3. Відкрий інкогніто.
+4. Перевір `/route-check`; якщо немає `sonya-v3-admin-hotfix`, значить у GitHub ще не залитий цей ZIP.
 
-## 7. Mini App
+## Куди вставляти ключі
 
-Open:
+Після First Setup відкрий Admin → API Keys і встав:
 
-```txt
-https://projectseniorservice.<your-subdomain>.workers.dev/miniapp
-```
+- `TELEGRAM_BOT_TOKEN`
+- `TELEGRAM_WEBHOOK_SECRET`
+- `OPENAI_API_KEY`
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `RESEND_API_KEY`, якщо потрібна відправка пошти
 
-Inside Telegram, Соня надсилає кнопку для відкриття панелі після `/start CODE`.

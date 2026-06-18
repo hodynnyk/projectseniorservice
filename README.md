@@ -1,85 +1,73 @@
-# projectseniorservice — Private Family Jarvis OS
+# projectseniorservice · Соня Family OS
 
-Production-like Cloudflare Workers project for a private AI assistant that works through:
+Private family AI assistant for Cloudflare Workers + Telegram Bot + Telegram Mini App + Web Admin.
 
-- Telegram Bot
-- Telegram Mini App HTML dashboard
-- Web Admin panel
-- one shared Jarvis core, storage, memory, tasks, reminders and activity log
+## v3 admin hotfix
 
-This v2 build is prepared for the user's exact GitHub upload flow:
+This build fixes the first-login/admin routing confusion:
 
-1. Upload this repository to GitHub.
-2. Add only two GitHub repository secrets for deployment: `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
-3. GitHub Actions deploys the Worker.
-4. Open `/admin` on the deployed Worker URL.
-5. Complete First Setup in the browser UI.
-6. Add Telegram/OpenAI/Google keys through Admin Panel.
+- `/admin` now always serves the Admin / First Setup UI.
+- `/setup`, `/__admin`, `/sonya-admin`, `/admin-panel` are backup admin routes.
+- `/miniapp` is the family Mini App panel.
+- `/route-check` confirms deployed route version.
+- First Setup auto-fills simple starter codes so a non-coder can activate the system quickly.
 
-## Cloudflare resources already wired
+Default First Setup suggestions shown in the form:
 
-```txt
-Worker name: projectseniorservice
-KV binding: JARVIS_KV
-KV namespace id: 1871b5152bde4980be4c656ac27a446e
-D1 binding: DB
-D1 database name: projectseniorservice
-D1 database id: 41ef1a3a-903c-494f-aff4-af2ff9d2ceef
+- Admin secret: `sonya-admin-2026`
+- Owner access code: `owner2026`
+- Family access code: `family2026`
+
+You can change them before pressing Save.
+
+## Deploy flow for the user
+
+1. Upload this repository to GitHub repo `projectseniorservice`.
+2. Cloudflare deploys Worker `projectseniorservice`.
+3. Open:
+
+```text
+https://projectseniorservice.bot-worker-tenj.workers.dev/route-check
 ```
 
-The app is KV-first so the first deploy can work immediately. D1 is bound and documented for later heavier structured storage, but the running v2 core uses KV to avoid migration/setup blockers.
+It should show `sonya-v3-admin-hotfix`.
+
+4. Open:
+
+```text
+https://projectseniorservice.bot-worker-tenj.workers.dev/admin
+```
+
+or backup:
+
+```text
+https://projectseniorservice.bot-worker-tenj.workers.dev/setup
+```
+
+5. Complete First Setup.
+6. Then Mini App login is:
+
+```text
+https://projectseniorservice.bot-worker-tenj.workers.dev/miniapp
+```
+
+## Bindings already configured
+
+- KV binding: `SONYA_KV`
+- KV id: `1871b5152bde4980be4c656ac27a446e`
+- D1 binding: `DB`
+- D1 name: `projectseniorservice`
+- D1 id: `41ef1a3a-903c-494f-aff4-af2ff9d2ceef`
 
 ## Main routes
 
-```txt
-/miniapp                         Telegram Mini App / mobile Jarvis panel
-/admin                           Web Admin / First Setup / API keys / modules / logs
-/api/health                      Health check
-/api/setup/status                First setup status
-/api/setup                       First setup POST
-/api/*                           Shared API core
-/telegram/webhook/:secret        Telegram webhook
-```
+- `/admin` — Web Admin / First Setup
+- `/setup` — backup Admin / First Setup
+- `/miniapp` — Telegram Mini App panel
+- `/health` — health check
+- `/api/setup/status` — setup state
+- `/route-check` — deployed route version check
 
-## What works in v2
+## Notes
 
-- First Setup from Web Admin
-- Owner and Family roles
-- private/shared visibility
-- task/reminder/note/contact/list/expense/car/health/content/QA objects
-- Today dashboard
-- natural-language command routing
-- global search over local Jarvis memory/items
-- Telegram Bot text and voice path
-- Telegram Mini App panel
-- Web Admin panel
-- API key manager
-- activity history
-- modules on/off
-- backup/export
-- web-library.net mail account registry and inbox adapter slot
-- Google OAuth preparation
-- cron reminder sweep every 5 minutes
-
-## Important note about web-library.net
-
-The public web-library.net page states that sending messages to the internet is not available. Therefore this project does not fake outbound mail through web-library.net. It provides account registry + inbox adapter support. For outbound sending, add `RESEND_API_KEY` or another legal outbound provider later.
-
-## Documentation
-
-- `docs/SETUP.md`
-- `docs/API_KEYS.md`
-- `docs/ARCHITECTURE.md`
-- `docs/TESTING.md`
-- `docs/CLOUDFLARE_FREE_TIER.md`
-
-## Local commands for developers
-
-The user does not need these for normal GitHub upload flow.
-
-```bash
-npm install
-npm run check
-npm run smoke
-npm run deploy
-```
+The product is KV-first for immediate deploy stability. D1 is bound and ready for future expansion.

@@ -10,9 +10,10 @@ export default {
   async fetch(request, env, ctx) {
     const path = getPath(request);
     try {
-      if (path === '/') return redirect('/miniapp');
+      if (path === '/') return redirect('/admin');
       if (path === '/miniapp') return html(miniAppHtml());
-      if (path === '/admin') return html(adminHtml());
+      if (['/admin','/setup','/__admin','/sonya-admin','/admin-panel'].includes(path)) return html(adminHtml());
+      if (path === '/route-check') return json({ ok: true, version: 'sonya-v3-admin-hotfix', routes: { admin: '/admin', setup: '/setup', miniapp: '/miniapp' }, time: new Date().toISOString() });
       if (path === '/health') return json({ ok: true, service: 'projectseniorservice', route: 'health', time: new Date().toISOString() });
       if (path === '/robots.txt') return text('User-agent: *\nDisallow: /\n');
       if (path.startsWith('/telegram/webhook')) {
