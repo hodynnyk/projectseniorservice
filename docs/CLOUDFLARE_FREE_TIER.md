@@ -29,7 +29,7 @@ The D1 binding is already configured:
 ```txt
 binding: DB
 name: projectseniorservice
-id: 00000001-00000000-0000508e-c84a51b9d54805a1944eec20354b3faa
+id: 41ef1a3a-903c-494f-aff4-af2ff9d2ceef
 ```
 
 ## When to add R2

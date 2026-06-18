@@ -1,11 +1,11 @@
-# projectseniorservice — Private Family Соня OS
+# projectseniorservice — Private Family Jarvis OS
 
 Production-like Cloudflare Workers project for a private AI assistant that works through:
 
 - Telegram Bot
 - Telegram Mini App HTML dashboard
 - Web Admin panel
-- one shared ядро Соні, storage, memory, tasks, reminders and activity log
+- one shared Jarvis core, storage, memory, tasks, reminders and activity log
 
 This v2 build is prepared for the user's exact GitHub upload flow:
 
@@ -20,16 +20,11 @@ This v2 build is prepared for the user's exact GitHub upload flow:
 
 ```txt
 Worker name: projectseniorservice
-GitHub repository name: projectseniorservice
-Assistant name: Соня
-Primary UI language: Ukrainian
-Optional UI language: English
-Understood input: Ukrainian, Russian, surzhyk, English
-KV binding: SONYA_KV
+KV binding: JARVIS_KV
 KV namespace id: 1871b5152bde4980be4c656ac27a446e
 D1 binding: DB
 D1 database name: projectseniorservice
-D1 database id: 00000001-00000000-0000508e-c84a51b9d54805a1944eec20354b3faa
+D1 database id: 41ef1a3a-903c-494f-aff4-af2ff9d2ceef
 ```
 
 The app is KV-first so the first deploy can work immediately. D1 is bound and documented for later heavier structured storage, but the running v2 core uses KV to avoid migration/setup blockers.
@@ -37,7 +32,7 @@ The app is KV-first so the first deploy can work immediately. D1 is bound and do
 ## Main routes
 
 ```txt
-/miniapp                         Telegram Mini App / mobile панель Соні
+/miniapp                         Telegram Mini App / mobile Jarvis panel
 /admin                           Web Admin / First Setup / API keys / modules / logs
 /api/health                      Health check
 /api/setup/status                First setup status
@@ -54,7 +49,7 @@ The app is KV-first so the first deploy can work immediately. D1 is bound and do
 - task/reminder/note/contact/list/expense/car/health/content/QA objects
 - Today dashboard
 - natural-language command routing
-- global search over local пам’ять Соні/items
+- global search over local Jarvis memory/items
 - Telegram Bot text and voice path
 - Telegram Mini App panel
 - Web Admin panel
