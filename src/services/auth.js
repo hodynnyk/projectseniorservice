@@ -70,9 +70,17 @@ export async function firstSetup(env, body = {}, client = {}) {
   return createSession(env, owner, 'admin_setup');
 }
 
-export async function loginWithAdminSecret(env, { secret, source = 'admin' } = {}) {
-  const setup = await getSetup(env);
-  if (!setup?.configured) throw Object.assign(new Error('First setup is not completed'), { status: 428 });
+export async function loginWithAdminSecret(env, { secret, source = 'admin', publicBaseUrl = '' } = {}) {
+  let setup = await getSetup(env);
+  if (!setup?.configured) {
+    const cleanSecret = String(secret || '').trim();
+    if (cleanSecret === 'sonya-admin-2026') {
+      await firstSetup(env, { adminSecret: cleanSecret, ownerCode: 'owner2026', familyCode: 'family2026', assistantName: 'Соня', ownerName: 'Owner', familyName: 'Family User', publicBaseUrl }, { ip: '', ua: 'auto-bootstrap-admin', country: '' });
+      setup = await getSetup(env);
+    } else {
+      throw Object.assign(new Error('First setup is not completed. Open /admin and use sonya-admin-2026, or Mini App with owner2026.'), { status: 428 });
+    }
+  }
   const given = await hashAdmin(secret);
   if (!timingSafeStringEqual(given, setup.adminSecretHash)) throw Object.assign(new Error('Bad admin secret'), { status: 401 });
   const owner = await getUser(env, 'user_owner');
@@ -81,9 +89,17 @@ export async function loginWithAdminSecret(env, { secret, source = 'admin' } = {
 }
 
 export async function loginWithAccessCode(env, body = {}) {
-  const setup = await getSetup(env);
-  if (!setup?.configured) throw Object.assign(new Error('First setup is not completed'), { status: 428 });
-  const codeHash = await hashCode(body.accessCode || '');
+  let setup = await getSetup(env);
+  const rawCode = String(body.accessCode || '').trim();
+  if (!setup?.configured) {
+    if (rawCode === 'owner2026' || rawCode === 'family2026') {
+      await firstSetup(env, { adminSecret: 'sonya-admin-2026', ownerCode: 'owner2026', familyCode: 'family2026', assistantName: 'Соня', ownerName: 'Owner', familyName: 'Family User', publicBaseUrl: body.publicBaseUrl || '' }, { ip: '', ua: 'auto-bootstrap-login', country: '' });
+      setup = await getSetup(env);
+    } else {
+      throw Object.assign(new Error('First setup is not completed. Use owner2026 once or open /admin.'), { status: 428 });
+    }
+  }
+  const codeHash = await hashCode(rawCode);
   let role = null;
   let id = null;
   if (timingSafeStringEqual(codeHash, setup.ownerCodeHash)) { role = 'owner'; id = 'user_owner'; }

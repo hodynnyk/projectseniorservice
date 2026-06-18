@@ -31,13 +31,13 @@ export async function handleApi(env, request, ctx) {
 
   if (path === '/api/auth/login' && method === 'POST') {
     const body = await readJson(request);
-    const session = await loginWithAccessCode(env, { ...body, source: body.source || 'web' });
+    const session = await loginWithAccessCode(env, { ...body, publicBaseUrl: body.publicBaseUrl || new URL(request.url).origin, source: body.source || 'web' });
     return json({ ok: true, ...session }, 200, { 'set-cookie': cookie('sonya_session', session.token) });
   }
 
   if (path === '/api/auth/admin-secret' && method === 'POST') {
     const body = await readJson(request);
-    const session = await loginWithAdminSecret(env, { secret: body.secret, source: 'admin' });
+    const session = await loginWithAdminSecret(env, { secret: body.secret, source: 'admin', publicBaseUrl: body.publicBaseUrl || new URL(request.url).origin });
     return json({ ok: true, ...session }, 200, { 'set-cookie': cookie('sonya_session', session.token) });
   }
 
@@ -46,7 +46,7 @@ export async function handleApi(env, request, ctx) {
     const token = body.botToken || await getApiKeyValue(env, 'TELEGRAM_BOT_TOKEN') || env.TELEGRAM_BOT_TOKEN || '';
     const tg = token ? await verifyTelegramInitData(body.initData, token) : null;
     if (body.initData && token && !tg) return error('Telegram initData validation failed', 401);
-    const session = await loginWithAccessCode(env, { accessCode: body.accessCode || '', displayName: tg ? [tg.first_name, tg.last_name].filter(Boolean).join(' ') || tg.username : body.displayName, username: tg?.username || '', source: 'telegram_miniapp', telegramId: tg?.id || body.telegramId || '' });
+    const session = await loginWithAccessCode(env, { accessCode: body.accessCode || '', publicBaseUrl: body.publicBaseUrl || new URL(request.url).origin, displayName: tg ? [tg.first_name, tg.last_name].filter(Boolean).join(' ') || tg.username : body.displayName, username: tg?.username || '', source: 'telegram_miniapp', telegramId: tg?.id || body.telegramId || '' });
     return json({ ok: true, ...session }, 200, { 'set-cookie': cookie('sonya_session', session.token) });
   }
 
