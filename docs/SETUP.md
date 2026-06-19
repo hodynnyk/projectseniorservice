@@ -1,8 +1,8 @@
-# Setup · Соня v15
+# Setup · Соня v17
 
 1. Upload the ZIP content to GitHub repo `projectseniorservice`.
 2. Wait for Cloudflare deploy.
-3. Open `/route-check` and confirm `sonya-v15-google-account-picker-avatar`.
+3. Open `/route-check` and confirm `sonya-v17-google-json-import-red-sonya`.
 4. Open `/admin`.
 5. Login with admin secret.
 6. Go to **API Keys** and add keys.
@@ -38,12 +38,12 @@ Fallback: OpenAI / GPT
 
 
 
-## v15 Google account picker + welcome avatar
+## v17 Google account picker + welcome avatar
 - Added real anime Соня visual from the provided reference as a Worker-served asset.
 - Added Google OAuth Client ID preflight to prevent Google invalid_client screen.
 - Added manual API key name input for GEMINI_API_KEY / custom keys.
 - Google Connect now explains exactly what is wrong before opening OAuth.
 
 
-## Telegram UI policy v15
+## Telegram UI policy v17
 Telegram Bot replies without automatic Mini App button. The panel is expected to be opened separately through Telegram Mini Apps / bot menu.

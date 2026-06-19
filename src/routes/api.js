@@ -21,7 +21,7 @@ export async function handleApi(env, request, ctx) {
 
   if (path === '/api/health') {
     const setup = await getSetup(env);
-    return json({ ok: true, service: 'projectseniorservice', version: 'sonya-v15-google-account-picker-avatar', time: new Date().toISOString(), configured: !!setup?.configured, bindings: { kv: !!env.SONYA_KV, d1: !!env.DB, files: 'metadata_only', google: true, gemini: true } });
+    return json({ ok: true, service: 'projectseniorservice', version: 'sonya-v17-google-json-import-red-sonya', time: new Date().toISOString(), configured: !!setup?.configured, bindings: { kv: !!env.SONYA_KV, d1: !!env.DB, files: 'metadata_only', google: true, gemini: true } });
   }
 
   if (path === '/api/setup/status') return json({ ok: true, configured: await isConfigured(env), setup: sanitizeSetup(await getSetup(env)) });
@@ -111,6 +111,19 @@ export async function handleApi(env, request, ctx) {
   if (path === '/api/admin/r2/status' && method === 'GET') return json(await r2Status(env));
   if (path === '/api/admin/invites' && method === 'POST') return json({ ok: true, invite: await createInvite(env, user, await readJson(request)) });
   if (path === '/api/admin/activity' && method === 'GET') return json({ ok: true, logs: await listActivity(env, user, Object.fromEntries(url.searchParams)) });
+  if (path === '/api/admin/google/import-client-json' && method === 'POST') {
+    const body = await readJson(request);
+    const parsed = parseGoogleClientJson(body);
+    await setApiKey(env, user, { name: 'GOOGLE_CLIENT_ID', label: 'Google OAuth Web Client ID', value: parsed.clientId, provider: 'GOOGLE' });
+    await setApiKey(env, user, { name: 'GOOGLE_CLIENT_SECRET', label: 'Google OAuth Client Secret', value: parsed.clientSecret, provider: 'GOOGLE' });
+    const publicBaseUrl = body.publicBaseUrl || new URL(request.url).origin;
+    await setApiKey(env, user, { name: 'PUBLIC_BASE_URL', label: 'Public Worker URL', value: publicBaseUrl, provider: 'SYSTEM' });
+    const requiredRedirectUri = `${publicBaseUrl}/api/google/callback`;
+    const configuredRedirects = parsed.redirectUris || [];
+    const redirectReady = configuredRedirects.includes(requiredRedirectUri);
+    await logActivity(env, { userId: user.id, source: 'admin', module: 'google', action: 'import_client_json', message: redirectReady ? 'Google OAuth JSON imported' : 'Google OAuth JSON imported, redirect URI needs update', metadata: { redirectReady, requiredRedirectUri, configuredRedirects } });
+    return json({ ok: true, imported: true, clientIdHint: maskGoogleClientIdLocal(parsed.clientId), redirectReady, requiredRedirectUri, configuredRedirects, warning: redirectReady ? '' : 'Add requiredRedirectUri to Google Cloud OAuth Client > Authorized redirect URIs.' });
+  }
   if (path === '/api/admin/keys' && method === 'GET') return json({ ok: true, keys: await listApiKeys(env) });
   if (path === '/api/admin/keys' && method === 'POST') {
     const body = await readJson(request);
@@ -132,6 +145,28 @@ export async function handleApi(env, request, ctx) {
   if (path === '/api/admin/telegram/status' && method === 'GET') return json(await getTelegramWebhookStatus(env));
 
   return error('Not found', 404);
+}
+
+
+function parseGoogleClientJson(body = {}) {
+  let obj = body.json || body.clientJson || body;
+  if (typeof obj === 'string') {
+    try { obj = JSON.parse(obj); } catch { throw Object.assign(new Error('Google client JSON is not valid JSON'), { status: 400 }); }
+  }
+  const web = obj.web || obj.installed || obj;
+  const clientId = String(web.client_id || '').trim();
+  const clientSecret = String(web.client_secret || '').trim();
+  const redirectUris = Array.isArray(web.redirect_uris) ? web.redirect_uris.map(String) : [];
+  if (!clientId || !clientId.endsWith('.apps.googleusercontent.com')) throw Object.assign(new Error('JSON does not contain valid OAuth Web Client ID ending with .apps.googleusercontent.com'), { status: 400 });
+  if (!clientSecret) throw Object.assign(new Error('JSON does not contain client_secret'), { status: 400 });
+  return { clientId, clientSecret, redirectUris };
+}
+
+function maskGoogleClientIdLocal(v = '') {
+  v = String(v || '');
+  if (!v) return '';
+  if (v.length <= 24) return v[0] + '•••' + v.slice(-4);
+  return v.slice(0, 12) + '••••••••' + v.slice(-22);
 }
 
 function assertOwner(user) { if (user.role !== 'owner') throw Object.assign(new Error('Owner access required'), { status: 403 }); }

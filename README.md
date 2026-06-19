@@ -44,9 +44,15 @@ sonya-v12-ai-router-model-prompt
 ```
 
 
-## v15 change
+## v17 change
 Telegram Bot no longer attaches the inline Mini App button to every answer. Sonya now replies with clean contextual text only; Mini App is expected to be opened separately through Telegram Mini Apps / bot menu.
 
 
-## Telegram UI policy v15
+## Telegram UI policy v17
 Telegram Bot replies without automatic Mini App button. The panel is expected to be opened separately through Telegram Mini Apps / bot menu.
+
+
+## v17 Google JSON import
+- Admin → Google now accepts full Google client_secret JSON paste/import.
+- It stores GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET automatically.
+- It checks whether `/api/google/callback` is present in Authorized redirect URIs.
