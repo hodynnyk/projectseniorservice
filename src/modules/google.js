@@ -14,12 +14,18 @@ export async function googleStatus(env, user) {
   const clientId = await getApiKeyValue(env, 'GOOGLE_CLIENT_ID');
   const clientSecret = await getApiKeyValue(env, 'GOOGLE_CLIENT_SECRET');
   const token = user?.id ? await getRefreshToken(env, user.id) : '';
+  const publicUrl = await getPublicBaseUrl(env);
+  const clientIdLooksValid = looksLikeGoogleOAuthClientId(clientId);
   return {
-    configured: !!(clientId && clientSecret),
+    configured: !!(clientIdLooksValid && clientSecret),
     connected: !!token,
     account: token ? 'connected OAuth user' : 'not connected',
+    clientIdLooksValid,
+    clientIdHint: maskGoogleClientId(clientId),
+    clientSecretConfigured: !!clientSecret,
     scopes: ['gmail.readonly', 'gmail.send', 'gmail.modify', 'calendar.events', 'calendar.readonly'],
-    redirectUri: `${await getPublicBaseUrl(env)}/api/google/callback`
+    redirectUri: `${publicUrl}/api/google/callback`,
+    setupHint: 'GOOGLE_CLIENT_ID must be an OAuth 2.0 Web Client ID ending with .apps.googleusercontent.com. Do not use API key, refresh token, or client secret here.'
   };
 }
 
@@ -27,6 +33,7 @@ export async function googleAuthUrl(env, user) {
   const clientId = await getApiKeyValue(env, 'GOOGLE_CLIENT_ID');
   const publicUrl = await getPublicBaseUrl(env);
   if (!clientId) return { ok: false, error: 'GOOGLE_CLIENT_ID is missing in Admin > API Keys' };
+  if (!looksLikeGoogleOAuthClientId(clientId)) return { ok: false, error: 'GOOGLE_CLIENT_ID is wrong. It must be OAuth 2.0 Web Client ID from Google Cloud and end with .apps.googleusercontent.com. This is why Google showed invalid_client.', redirectUri: `${publicUrl}/api/google/callback`, clientIdHint: maskGoogleClientId(clientId) };
   if (!publicUrl) return { ok: false, error: 'PUBLIC_BASE_URL is missing in Admin > API Keys or setup' };
   const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
   url.searchParams.set('client_id', clientId);
@@ -45,6 +52,7 @@ export async function googleCallback(env, code, state) {
   const clientSecret = await getApiKeyValue(env, 'GOOGLE_CLIENT_SECRET');
   const publicUrl = await getPublicBaseUrl(env);
   if (!code || !clientId || !clientSecret || !publicUrl) return { ok: false, error: 'Missing code, public URL, or Google credentials' };
+  if (!looksLikeGoogleOAuthClientId(clientId)) return { ok: false, error: 'GOOGLE_CLIENT_ID is invalid. Use OAuth 2.0 Web Client ID ending with .apps.googleusercontent.com.' };
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
@@ -219,4 +227,16 @@ function normalizeCalendarRange(options = {}) {
 
 function failGoogle(code, status, data) {
   return { ok: false, code, status, error: data?.error?.message || data?.error_description || data?.error || 'Google API error', details: data };
+}
+
+function looksLikeGoogleOAuthClientId(value) {
+  const v = String(value || '').trim();
+  return /^[0-9a-zA-Z_-]+-[0-9a-zA-Z_-]+\.apps\.googleusercontent\.com$/.test(v) || /^[0-9]+-[0-9a-zA-Z_-]+\.apps\.googleusercontent\.com$/.test(v);
+}
+
+function maskGoogleClientId(value) {
+  const v = String(value || '').trim();
+  if (!v) return '';
+  const tail = v.endsWith('.apps.googleusercontent.com') ? '.apps.googleusercontent.com' : v.slice(-10);
+  return `${v.slice(0, 6)}••••${tail}`;
 }

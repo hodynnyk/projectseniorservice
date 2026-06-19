@@ -16,13 +16,13 @@ export async function handleTelegramWebhook(env, request) {
   if (text.startsWith('/start')) {
     const code = text.replace('/start', '').trim();
     if (!code) {
-      await sendMessage(env, chatId, 'Привіт. Я приватна Соня. Напиши /start ТВОЙ_КОД_ДОСТУПУ.', await miniAppKeyboard(env));
+      await sendMessage(env, chatId, 'Привіт. Я приватна Соня. Напиши /start ТВОЙ_КОД_ДОСТУПУ.');
       return new Response('ok');
     }
     try {
       const session = await loginWithAccessCode(env, { accessCode: code, displayName: fullName(tgUser), username: tgUser.username || '', source: 'telegram', telegramId: tgUser.id });
       user = session.user;
-      await sendMessage(env, chatId, user.role === 'owner' ? `Соню активовано для ${escapeTelegram(user.displayName)}. Я поруч, сер.` : `Соню активовано для ${escapeTelegram(user.displayName)}.`, await miniAppKeyboard(env));
+      await sendMessage(env, chatId, user.role === 'owner' ? `Соню активовано для ${escapeTelegram(user.displayName)}. Я поруч, сер.` : `Соню активовано для ${escapeTelegram(user.displayName)}.`);
     } catch (err) {
       await sendMessage(env, chatId, `Код доступу не підійшов або система ще не налаштована. ${err.message || ''}`.slice(0, 500));
     }
@@ -47,7 +47,7 @@ export async function handleTelegramWebhook(env, request) {
   if (telegramFile && !shouldStoreIncomingFile(input)) {
     await sendMessage(env, chatId, user.role === 'owner'
       ? 'Сер, файл бачу. За вашим правилом я не тягну його в R2 і не зберігаю без явної команди. Якщо треба — надішліть із підписом “збережи як документ” або “додай у сімейні файли”.'
-      : 'Файл бачу, але без команди не зберігаю. Надішли з підписом “збережи фото/документ”, якщо треба додати картку.', await miniAppKeyboard(env));
+      : 'Файл бачу, але без команди не зберігаю. Надішли з підписом “збережи фото/документ”, якщо треба додати картку.');
     return new Response('ok');
   }
 
@@ -65,7 +65,7 @@ export async function handleTelegramWebhook(env, request) {
         metadata: { telegram: { kind: telegramFile.kind, fileId: telegramFile.fileId }, binaryStored: false, r2Disabled: true }
       });
       const extra = input ? '\nПідпис також обробляю як команду.' : '';
-      await sendMessage(env, chatId, `Зберегла легку картку файлу без R2: ${escapeTelegram(saved.title)}\nID: ${escapeTelegram(saved.id)}${extra}`, await miniAppKeyboard(env));
+      await sendMessage(env, chatId, `Зберегла легку картку файлу без R2: ${escapeTelegram(saved.title)}\nID: ${escapeTelegram(saved.id)}${extra}`);
       if (!input) return new Response('ok');
     } catch (err) {
       await sendMessage(env, chatId, `Файл побачила, але картку не створила: ${escapeTelegram(err.message || 'unknown error')}`);
@@ -80,7 +80,7 @@ export async function handleTelegramWebhook(env, request) {
     return new Response('ok');
   }
   const result = await handleNaturalInput(env, user, input, 'telegram_bot');
-  await sendMessage(env, chatId, result.text, await miniAppKeyboard(env));
+  await sendMessage(env, chatId, result.text);
   return new Response('ok');
 }
 
@@ -149,10 +149,9 @@ export async function sendMessage(env, chatId, text, replyMarkup = undefined) {
 }
 
 export async function miniAppKeyboard(env) {
-  const publicBaseUrl = await getSetting(env, 'PUBLIC_BASE_URL', env.PUBLIC_BASE_URL || '');
-  const url = `${publicBaseUrl.replace(/\/+$/, '')}/miniapp`;
-  if (!url.startsWith('https://')) return undefined;
-  return { inline_keyboard: [[{ text: 'Відкрити Панель Соні', web_app: { url } }]] };
+  // v14: Telegram bot replies with clean contextual text only.
+  // The Mini App is opened separately through Telegram Mini Apps / bot menu.
+  return undefined;
 }
 
 export async function notifyUser(env, userId, text) {
@@ -160,7 +159,7 @@ export async function notifyUser(env, userId, text) {
   const user = users.find(u => u.id === userId);
   if (!user?.telegramId) return { ok: false, skipped: true, reason: 'telegram not linked' };
   await logActivity(env, { userId, source: 'scheduled', module: 'reminders', action: 'notify', message: text });
-  return sendMessage(env, user.telegramId, text, await miniAppKeyboard(env));
+  return sendMessage(env, user.telegramId, text);
 }
 
 function pickTelegramFile(message) {

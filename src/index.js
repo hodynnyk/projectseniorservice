@@ -5,16 +5,18 @@ import { handleApi } from './routes/api.js';
 import { handleTelegramWebhook } from './telegram/bot.js';
 import { runReminderSweep } from './services/reminders.js';
 import { ensureStorage } from './storage/kv.js';
+import { sonyaAnimeResponse } from './assets/sonyaImage.js';
 
 export default {
   async fetch(request, env, ctx) {
     const path = getPath(request);
     try {
       if (path === '/') return redirect('/admin');
+      if (path === '/assets/sonya-anime.webp') return sonyaAnimeResponse();
       if (path === '/miniapp') return html(miniAppHtml());
       if (['/admin','/setup','/__admin','/sonya-admin','/admin-panel'].includes(path)) return html(adminHtml());
-      if (path === '/route-check') return json({ ok: true, version: 'sonya-v12-ai-router-model-prompt', routes: { admin: '/admin', setup: '/setup', miniapp: '/miniapp' }, time: new Date().toISOString() });
-      if (path === '/health') return json({ ok: true, service: 'projectseniorservice', version: 'sonya-v12-ai-router-model-prompt', route: 'health', time: new Date().toISOString() });
+      if (path === '/route-check') return json({ ok: true, version: 'sonya-v14-telegram-no-panel-buttons', routes: { admin: '/admin', setup: '/setup', miniapp: '/miniapp' }, time: new Date().toISOString() });
+      if (path === '/health') return json({ ok: true, service: 'projectseniorservice', version: 'sonya-v14-telegram-no-panel-buttons', route: 'health', time: new Date().toISOString() });
       if (path === '/robots.txt') return text('User-agent: *\nDisallow: /\n');
       if (path.startsWith('/telegram/webhook')) {
         await ensureStorage(env);

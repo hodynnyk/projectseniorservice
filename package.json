@@ -1,8 +1,8 @@
 {
   "name": "projectseniorservice",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "private": true,
-  "description": "Private Family Соня OS with anime Sonya Center, Telegram bot, OpenAI primary AI, Gemini sidecar, Google Gmail/Calendar, weather, no R2, owner personality, family reset, fitness, nutrition, food book modules and AI router model selector with shared base prompt on Cloudflare Workers",
+  "description": "Private Family Соня OS with anime Sonya Center, clean Telegram replies without Mini App buttons, OpenAI/Gemini AI Router, Google Gmail/Calendar, weather, no R2, owner personality, fitness, nutrition and food book modules on Cloudflare Workers",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",

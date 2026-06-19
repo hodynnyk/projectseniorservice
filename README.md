@@ -42,3 +42,11 @@ Expected version:
 ```text
 sonya-v12-ai-router-model-prompt
 ```
+
+
+## v14 change
+Telegram Bot no longer attaches the inline Mini App button to every answer. Sonya now replies with clean contextual text only; Mini App is expected to be opened separately through Telegram Mini Apps / bot menu.
+
+
+## Telegram UI policy v14
+Telegram Bot replies without automatic Mini App button. The panel is expected to be opened separately through Telegram Mini Apps / bot menu.

@@ -21,7 +21,7 @@ export async function handleApi(env, request, ctx) {
 
   if (path === '/api/health') {
     const setup = await getSetup(env);
-    return json({ ok: true, service: 'projectseniorservice', version: 'sonya-v12-ai-router-model-prompt', time: new Date().toISOString(), configured: !!setup?.configured, bindings: { kv: !!env.SONYA_KV, d1: !!env.DB, files: 'metadata_only', google: true, gemini: true } });
+    return json({ ok: true, service: 'projectseniorservice', version: 'sonya-v14-telegram-no-panel-buttons', time: new Date().toISOString(), configured: !!setup?.configured, bindings: { kv: !!env.SONYA_KV, d1: !!env.DB, files: 'metadata_only', google: true, gemini: true } });
   }
 
   if (path === '/api/setup/status') return json({ ok: true, configured: await isConfigured(env), setup: sanitizeSetup(await getSetup(env)) });

@@ -1,4 +1,4 @@
-# API Keys · Соня v12
+# API Keys · Соня v13
 
 Add these in `/admin → API Keys`.
 
@@ -26,3 +26,10 @@ These are normally edited in `/admin → AI Router`, not manually:
 | AI_FALLBACK_PROVIDER | backup provider if active fails |
 | SONYA_BASE_PROMPT | base prompt used by all AI models |
 
+
+
+## v13 Google visual fix
+- Added real anime Соня visual from the provided reference as a Worker-served asset.
+- Added Google OAuth Client ID preflight to prevent Google invalid_client screen.
+- Added manual API key name input for GEMINI_API_KEY / custom keys.
+- Google Connect now explains exactly what is wrong before opening OAuth.
