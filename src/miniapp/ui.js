@@ -25,16 +25,39 @@ button,input{font:inherit}.app{max-width:560px;margin:0 auto;padding:14px 14px 8
 <body><div id="app" class="app"></div><div id="tabs" class="tabs hidden"></div>
 <script>
 try{window.Telegram&&Telegram.WebApp&&Telegram.WebApp.ready&&Telegram.WebApp.ready()}catch(e){}
-const VERSION='sonya-v18-clean-miniapp-secure-admin';
+const VERSION='sonya-v19-admin-unlocked-clean-miniapp';
 const S={token:localStorage.sonya_token||'',user:null,tab:'today',today:null,items:[],google:null,loading:false};
 const app=document.getElementById('app'), tabs=document.getElementById('tabs');
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function api(path,opt={}){const h={'content-type':'application/json'};if(S.token)h.authorization='Bearer '+S.token;return fetch(path,{...opt,headers:{...h,...(opt.headers||{})}}).then(r=>r.json().catch(()=>({ok:false,error:'Bad JSON'})).then(j=>{if(!r.ok)throw new Error(j.error||'Request failed');return j}))}
+async function api(path,opt={}){
+  const h={'accept':'application/json'};
+  if(opt.body!=null)h['content-type']='application/json';
+  if(S.token)h.authorization='Bearer '+S.token;
+  const url=new URL(path, location.origin).toString();
+  let r,txt='';
+  try{r=await fetch(url,{...opt,headers:{...h,...(opt.headers||{})},cache:'no-store'});txt=await r.text();}
+  catch(e){throw new Error('Немає звʼязку із сервером. Оновіть Mini App і спробуйте ще раз.')}
+  let j=null;
+  try{j=txt?JSON.parse(txt):{};}catch(e){
+    if(r.status===404)throw new Error('Сервер ще не оновив API. Залийте останній ZIP або відкрийте Mini App заново.');
+    throw new Error('Сервер повернув неочікувану відповідь. Оновіть сторінку або перевірте /route-check.');
+  }
+  if(!r.ok||j.ok===false)throw new Error(humanError(j.error||j.message||'Request failed'));
+  return j;
+}
+function humanError(m){
+  m=String(m||'').replace(/^Bad JSON$/i,'Сервер повернув неочікувану відповідь. Оновіть Mini App.');
+  if(/Bad access code/i.test(m))return 'Код не підійшов. Перевірте access code.';
+  if(/Login required/i.test(m))return 'Сесія закінчилась. Увійдіть ще раз.';
+  if(/First setup/i.test(m))return 'Систему ще не налаштовано. Спочатку відкрийте адмінку.';
+  if(/Invalid JSON/i.test(m))return 'Mini App відправив некоректний запит. Я вже виправив це в цій збірці.';
+  return m;
+}
 function imgFor(tab){return tab==='body'?'/assets/sonya-fitness.webp':tab==='system'?'/assets/sonya-work.webp':tab==='tasks'?'/assets/sonya-night.webp':'/assets/sonya-welcome-red.webp'}
 function phrase(){if(!S.user)return 'Введіть приватний access code. Я відкрию тільки вашу панель.';if(S.user.role==='owner')return 'Сер, я показую тільки головне. Команди краще давати в Telegram — тут нічого зайвого.';return 'Показую сімейні задачі й потрібну інформацію. Без зайвих дій.'}
-function shell(inner){app.innerHTML='<div class="top"><div class="brand"><div class="mark"></div><div><h1>Соня</h1><div class="sub">projectseniorservice · clean mini app</div></div></div><div class="pill">'+esc(S.user?S.user.role:'private')+'</div></div>'+inner}
+function shell(inner){app.innerHTML='<div class="top"><div class="brand"><div class="mark"></div><div><h1>Соня</h1><div class="sub">особиста панель · тільки головне</div></div></div><div class="pill">'+esc(S.user?S.user.role:'private')+'</div></div>'+inner}
 function hero(title, text, tab){return '<div class="card hero"><div class="heroIn"><div class="avatarWrap"><img class="avatar" src="'+imgFor(tab||S.tab)+'" alt="Соня"></div><div><div class="bubble"><b>'+esc(title)+'</b><br>'+esc(text)+'</div></div></div></div>'}
-function loginView(msg=''){tabs.classList.add('hidden');shell('<div class="login">'+hero('Приватний вхід', msg||'Доброго вечору, сер. Я на місці. Введіть access code — без підказок і зайвих кнопок.','today')+'<div class="card"><input id="code" class="input" placeholder="Access code" autocomplete="current-password"><br><br><button class="btn" onclick="login()">Увійти</button><div class="meta" style="margin-top:12px">'+esc(msg||'')+'</div></div></div>')}
+function loginView(msg=''){tabs.classList.add('hidden');const intro='Доброго вечору, сер. Я на місці. Введіть access code — без підказок і зайвих кнопок.';shell('<div class="login">'+hero('Приватний вхід', intro,'today')+'<div class="card"><input id="code" class="input" placeholder="Access code" autocomplete="current-password"><br><br><button class="btn" onclick="login()">Увійти</button>'+(msg?'<div class="meta" style="margin-top:12px;color:#ffd9df">'+esc(msg)+'</div>':'')+'</div></div>')}
 function login(){const code=document.getElementById('code').value.trim();if(!code)return loginView('Порожній код, сер.');api('/api/auth/login',{method:'POST',body:JSON.stringify({accessCode:code,source:'miniapp',publicBaseUrl:location.origin})}).then(r=>{S.token=r.token;S.user=r.user;localStorage.sonya_token=r.token;loadAll()}).catch(e=>loginView(e.message))}
 function boot(){if(!S.token)return loginView();api('/api/me').then(r=>{S.user=r.user;loadAll()}).catch(()=>{localStorage.removeItem('sonya_token');S.token='';loginView()})}
 function loadAll(){S.loading=true;Promise.all([

@@ -58,9 +58,24 @@ Telegram Bot replies without automatic Mini App button. The panel is expected to
 - It checks whether `/api/google/callback` is present in Authorized redirect URIs.
 
 
-## v18 clean Mini App / secure Admin gate
+## v20 clean Mini App / normal Admin login
 - Mini App redesigned as a clean read-only dashboard: no ask box, no creation forms, no noisy extra buttons.
 - Mini App shows only: Today, open tasks, body/food journal, and system status.
-- Admin UI is no longer publicly visible on `/admin`; open it through `/admin?s=YOUR_ADMIN_SECRET`.
+- Admin UI opens normally on `/admin`, but the public screen only accepts admin secret; owner-code login was removed from the admin screen.
 - Sonya visual assets are used contextually: welcome, tasks/night, body/fitness, system/work.
 - R2 remains disabled; images are embedded as compressed Worker assets.
+
+
+## v20 Admin hotfix
+- Fixed the over-aggressive v18 admin gate.
+- `/admin` opens the admin login again.
+- Removed owner-code login button from the admin screen.
+- Mini App remains clean/read-only from v18.
+
+
+## v20 Mini App JSON fix
+- Fixed Mini App login error display: no more raw `Bad JSON` text.
+- Mini App now reads API responses as text first and safely parses JSON.
+- Network/404/non-JSON cases are converted into human messages.
+- `/admin` remains normally available from v19.
+- Clean Mini App read-only layout remains.

@@ -2,7 +2,7 @@
 
 1. Upload the ZIP content to GitHub repo `projectseniorservice`.
 2. Wait for Cloudflare deploy.
-3. Open `/route-check` and confirm `sonya-v18-clean-miniapp-secure-admin`.
+3. Open `/route-check` and confirm `sonya-v20-miniapp-json-human-fix`.
 4. Open `/admin`.
 5. Login with admin secret.
 6. Go to **API Keys** and add keys.
@@ -60,3 +60,14 @@ https://projectseniorservice.bot-worker-tenj.workers.dev/admin?s=YOUR_ADMIN_SECR
 ```
 
 Opening `/admin` without the secret returns a private 404 screen.
+
+
+## v20 Admin access
+
+Open admin normally:
+
+```text
+https://projectseniorservice.bot-worker-tenj.workers.dev/admin
+```
+
+The admin screen accepts only the admin secret. Owner/family access codes are not displayed on the admin login screen.
