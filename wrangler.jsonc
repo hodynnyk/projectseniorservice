@@ -22,13 +22,14 @@
     "UNDERSTOOD_INPUT_LANGUAGES": "uk,ru,en,surzhyk",
     "DEFAULT_TIMEZONE": "Europe/Kyiv",
     "OPENAI_MODEL": "gpt-4.1-mini",
+    "GEMINI_MODEL": "gemini-2.5-flash",
     "QUIET_HOURS_START": "23:00",
     "QUIET_HOURS_END": "08:00",
     "MAIL_DOMAIN": "web-library.net",
     "DEFAULT_WEATHER_LOCATION": "Obukhiv, Ukraine",
     "FILE_STORAGE_MODE": "metadata_only",
     "VOICE_INPUT_ENABLED": "false",
-    "SONYA_VERSION": "sonya-v8-no-r2-personality-family-reset"
+    "SONYA_VERSION": "sonya-v10-friendly-sonya-gemini-ui"
   },
   "kv_namespaces": [
     {

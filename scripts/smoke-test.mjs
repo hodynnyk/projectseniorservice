@@ -28,7 +28,7 @@ async function hit(path, init) {
 
 await hit('/api/health');
 const route = await hit('/route-check');
-if (route.data.version !== 'sonya-v8-no-r2-personality-family-reset') throw new Error('Wrong route-check version');
+if (route.data.version !== 'sonya-v10-friendly-sonya-gemini-ui') throw new Error('Wrong route-check version');
 const adminHtml = await hit('/admin');
 if (!String(adminHtml.data).includes('Соня Admin')) throw new Error('/admin did not return Admin UI');
 const miniHtml = await hit('/miniapp');
@@ -44,7 +44,7 @@ if (admin.data.user.role !== 'owner') throw new Error('Default admin-secret logi
 const item = await hit('/api/items', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + autoLogin.data.token }, body: JSON.stringify({ type: 'task', title: 'Smoke task', visibility: 'shared' }) });
 if (!item.data.item?.id) throw new Error('Item create failed');
 const overview = await hit('/api/admin/overview', { headers: { authorization: 'Bearer ' + autoLogin.data.token } });
-if (overview.data.overview.bindings.files !== 'metadata_only') throw new Error('File storage must be metadata_only in v8');
+if (overview.data.overview.bindings.files !== 'metadata_only') throw new Error('File storage must be metadata_only in v10');
 const reset = await hit('/api/admin/users/family/reset', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + autoLogin.data.token }, body: JSON.stringify({ mode: 'safe' }) });
 if (!reset.data.ok) throw new Error('Family reset failed');
-console.log('SMOKE OK: v8 no-r2/personality/family-reset paths passed');
+console.log('SMOKE OK: v10 friendly Sonya/Gemini UI paths passed');

@@ -1,8 +1,8 @@
 {
   "name": "projectseniorservice",
-  "version": "2.4.0",
+  "version": "3.0.0",
   "private": true,
-  "description": "Private Family Соня OS with Telegram bot, GPT, weather tool, metadata-only files, owner personality and family reset on Cloudflare Workers",
+  "description": "Private Family Соня OS with friendly Sonya Center UI, Telegram bot, OpenAI primary AI, Google Gmail/Calendar OAuth, Gemini sidecar, weather, no R2, owner personality and family reset on Cloudflare Workers",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",

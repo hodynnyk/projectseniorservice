@@ -1,39 +1,24 @@
-# Architecture · projectseniorservice v8
+# Architecture · Соня v10
 
-## Interfaces
+Cloudflare Worker є єдиним ядром для трьох інтерфейсів:
 
-- Telegram Bot: розмовний інтерфейс Соні.
-- Telegram Mini App: сімейна панель задач, пам’яті, файлів-карток, пошти.
-- Web Admin: ключі, users, Family reset, Telegram webhook, logs, modules, backup.
+- Telegram Bot webhook.
+- Telegram Mini App HTML panel.
+- Web Admin panel.
 
-## Storage
+Сховище:
 
-- KV `SONYA_KV`: головний runtime storage для settings/users/sessions/items/activity.
-- D1 `DB`: підключений для наступної SQL-еволюції, але v8 все ще KV-first для стабільного deploy.
-- R2: відключений. Binary-файли не зберігаються.
+- KV `SONYA_KV` — основний lightweight state.
+- D1 `DB` — підготовлений binding для майбутнього структурного розширення.
+- R2 — вимкнено за політикою Owner.
 
-## AI behavior
+AI:
 
-- GPT через OpenAI API для відповідей.
-- Weather через окремий tool, не через вигадування GPT.
-- Life Inbox не зберігає все автоматично. Автозбереження тільки при явному намірі: “запиши”, “збережи”, “додай”, “нагадай”, “створи”.
-- Якщо текст схожий на запис, але намір не явний, Соня уточнює.
+- OpenAI / GPT — primary brain.
+- Gemini — sidecar provider, запускається тільки за явним Gemini intent або через кнопку тесту.
+- Weather — окремий tool, не вигадується GPT.
 
-## Owner persona
+UI:
 
-Owner отримує окремий стиль: коротко, тепло, персонально, з делікатними звертаннями “сер/господин”. Після довгої паузи Соня вітається. Family user отримує нейтральний сімейний стиль.
-
-## Telegram
-
-- `setWebhook` доступний з Admin → API Keys.
-- Voice/audio вимкнено.
-- Photo/document не скачуються. Якщо Owner просить зберегти, створюється metadata-card із Telegram file_id.
-
-## Family reset
-
-Endpoint: `POST /api/admin/users/family/reset`.
-
-Modes:
-
-- `safe`: очищає приватні Family дані, Telegram link, sessions.
-- `hard`: очищає також shared objects, створені Family.
+- Admin v10 має Sonya Center, speech bubble, provider statuses і дружній key manager.
+- Mini App v10 має центральний блок Соні та не зберігає дані без явного наміру.

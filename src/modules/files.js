@@ -4,7 +4,7 @@ import { nowIso } from '../utils/dates.js';
 import { logActivity } from '../services/activity.js';
 
 /**
- * v8 file policy: no R2, no binary persistence.
+ * v10 file policy: no R2, no binary persistence.
  * We keep only lightweight metadata cards in KV so the bot stays functional
  * without burning the 10 GB/month R2 storage budget.
  */
@@ -98,7 +98,7 @@ export async function r2Status() {
     disabled: true,
     storageMode: 'metadata_only',
     usage: { uploadedBytes: 0, uploadedGb: 0, monthlyLimitGb: 10, softLimitGb: 9.8, locked: true, lockReason: 'disabled_by_owner_policy' },
-    policy: { rule: 'R2 is intentionally disabled in v8. Files/photos are not downloaded or persisted; only metadata cards are saved on explicit request.' }
+    policy: { rule: 'R2 is intentionally disabled in v10. Files/photos are not downloaded or persisted; only metadata cards are saved on explicit request.' }
   };
 }
 

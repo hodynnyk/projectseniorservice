@@ -96,7 +96,7 @@ export async function setModuleEnabled(env, user, moduleKey, enabled) {
 
 async function refreshModuleCredentialStatus(env, name) {
   const modules = await ensureModules(env);
-  const map = { TELEGRAM_BOT_TOKEN: 'telegram', OPENAI_API_KEY: 'openai', GOOGLE_CLIENT_ID: 'google', GOOGLE_CLIENT_SECRET: 'google' };
+  const map = { TELEGRAM_BOT_TOKEN: 'telegram', OPENAI_API_KEY: 'openai', GOOGLE_CLIENT_ID: 'google', GOOGLE_CLIENT_SECRET: 'google', GEMINI_API_KEY: 'gemini' };
   const mKey = map[name];
   if (!mKey) return;
   const next = modules.map(m => m.key === mKey ? { ...m, status: 'configured', updatedAt: nowIso() } : m);

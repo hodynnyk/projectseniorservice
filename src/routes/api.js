@@ -7,7 +7,8 @@ import { listActivity } from '../services/activity.js';
 import { listApiKeys, setApiKey, deleteApiKey, listModules, setModuleEnabled, setSetting, getSetup, getApiKeyValue } from '../modules/settings.js';
 import { createMailAccount, listMailAccounts, getInbox, sendMail } from '../modules/mail.js';
 import { uploadFile, listFiles, downloadFile, r2Status } from '../modules/files.js';
-import { googleAuthUrl, googleCallback, googleStatus } from '../modules/google.js';
+import { googleAuthUrl, googleCallback, googleStatus, listGmailMessages, readGmailMessage, sendGmailMessage, listCalendarEvents, createCalendarEvent } from '../modules/google.js';
+import { geminiStatus, askGemini } from '../modules/gemini.js';
 import { runReminderSweep } from '../services/reminders.js';
 import { setTelegramWebhook, getTelegramWebhookStatus } from '../telegram/bot.js';
 
@@ -19,7 +20,7 @@ export async function handleApi(env, request, ctx) {
 
   if (path === '/api/health') {
     const setup = await getSetup(env);
-    return json({ ok: true, service: 'projectseniorservice', time: new Date().toISOString(), configured: !!setup?.configured, bindings: { kv: !!env.SONYA_KV, d1: !!env.DB, files: 'metadata_only' } });
+    return json({ ok: true, service: 'projectseniorservice', version: 'sonya-v10-friendly-sonya-gemini-ui', time: new Date().toISOString(), configured: !!setup?.configured, bindings: { kv: !!env.SONYA_KV, d1: !!env.DB, files: 'metadata_only', google: true, gemini: true } });
   }
 
   if (path === '/api/setup/status') return json({ ok: true, configured: await isConfigured(env), setup: sanitizeSetup(await getSetup(env)) });
@@ -84,13 +85,21 @@ export async function handleApi(env, request, ctx) {
   const fileMatch = path.match(/^\/api\/files\/([^/]+)\/download$/);
   if (fileMatch && method === 'GET') return downloadFile(env, user, fileMatch[1]);
 
-  if (path === '/api/google/status') return json({ ok: true, status: await googleStatus(env, user) });
+  if (path === '/api/google/status') return json({ ok: true, status: await googleStatus(env, user), gemini: await geminiStatus(env) });
   if (path === '/api/google/auth-url') return json(await googleAuthUrl(env, user));
+  if (path === '/api/google/gmail/list') return json(await listGmailMessages(env, user, Object.fromEntries(url.searchParams)));
+  const gmailReadMatch = path.match(/^\/api\/google\/gmail\/messages\/([^/]+)$/);
+  if (gmailReadMatch && method === 'GET') return json(await readGmailMessage(env, user, gmailReadMatch[1]));
+  if (path === '/api/google/gmail/send' && method === 'POST') return json(await sendGmailMessage(env, user, await readJson(request)));
+  if (path === '/api/google/calendar/events' && method === 'GET') return json(await listCalendarEvents(env, user, Object.fromEntries(url.searchParams)));
+  if (path === '/api/google/calendar/events' && method === 'POST') return json(await createCalendarEvent(env, user, await readJson(request)));
+  if (path === '/api/ai/gemini' && method === 'POST') { const body = await readJson(request); return json(await askGemini(env, user, body.text || body.prompt || '', body.source || 'api')); }
+  if (path === '/api/gemini/status') return json(await geminiStatus(env));
 
   if (path.startsWith('/api/admin/')) assertOwner(user);
   if (path === '/api/admin/overview') {
-    const [users, modules, keys, logs, setup, r2] = await Promise.all([listUsers(env), listModules(env), listApiKeys(env), listActivity(env, user, { limit: 30 }), getSetup(env), r2Status(env)]);
-    return json({ ok: true, overview: { users, modules, keys, logs, setup: sanitizeSetup(setup), r2, bindings: { kv: !!env.SONYA_KV, d1: !!env.DB, files: 'metadata_only' } } });
+    const [users, modules, keys, logs, setup, r2, google, gemini] = await Promise.all([listUsers(env), listModules(env), listApiKeys(env), listActivity(env, user, { limit: 30 }), getSetup(env), r2Status(env), googleStatus(env, user), geminiStatus(env)]);
+    return json({ ok: true, overview: { users, modules, keys, logs, setup: sanitizeSetup(setup), r2, google, gemini, bindings: { kv: !!env.SONYA_KV, d1: !!env.DB, files: 'metadata_only', google: google.configured, gemini: gemini.configured } } });
   }
   if (path === '/api/admin/users' && method === 'GET') return json({ ok: true, users: await listUsers(env) });
   if (path === '/api/admin/users/family/reset' && method === 'POST') return json(await resetFamilyAccount(env, user, await readJson(request)));

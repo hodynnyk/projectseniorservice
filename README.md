@@ -1,46 +1,63 @@
-# projectseniorservice · Соня v8
+# projectseniorservice · Соня v10
 
-Приватна сімейна AI OS на Cloudflare Workers: Telegram Bot, Telegram Mini App, Web Admin, KV, D1, GPT, weather tool, metadata-only file cards, Owner-personality і Family reset.
+Приватна сімейна AI-система для Cloudflare Workers: Telegram Bot, Telegram Mini App і Web Admin працюють через один Worker та один KV/D1 контекст.
 
-## v8 hotfix
+## v10 що додано
 
-- `route-check` version: `sonya-v8-no-r2-personality-family-reset`.
-- R2 повністю вимкнено з deployment config: немає `r2_buckets`, немає binary upload/download.
-- Фото/документи не скачуються з Telegram і не кладуться в storage. Соня створює тільки metadata-картку, якщо є явна команда зберегти.
-- Voice/audio запити вимкнено, щоб не тягнути файли і не витрачати зайві ресурси.
-- Owner-акаунт отримав персональний стиль: тепле звертання, “сер/господин”, привітання після довгої паузи, але без перебору.
-- Соня більше не заносить усе в записи автоматично: якщо намір не явний, вона уточнює, що зробити.
-- Admin → Users має кнопку `Reset Family account`.
+- Новий дружній **Sonya Center** в адмінці: Соня в центрі панелі, speech bubble, коментарі до змін.
+- У Mini App теж доданий живий блок Соні з репліками й поясненням дій.
+- `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_ENABLED` додані прямо в Admin → API Keys.
+- Окремий блок **AI Providers**: OpenAI/GPT primary, Gemini sidecar, Google, Telegram.
+- Кнопки тесту GPT і Gemini з адмінки.
+- Google Gmail + Calendar модулі збережені.
+- R2 залишається вимкненим: тільки metadata-only картки файлів.
+- Voice/audio залишаються вимкненими для економії.
+- Соня не зберігає все бездумно: якщо намір нечіткий, вона уточнює.
+- Owner стиль: теплий, уважний, “сер/господин”, без перебору.
+- Family reset з адмінки збережений.
 
-## Швидкий старт
+## Основні маршрути
 
-1. Залий ZIP у GitHub repo `projectseniorservice`.
-2. Дочекайся Cloudflare deploy.
-3. Відкрий `/route-check`.
-4. Відкрий `/admin`.
-5. Увійди через `sonya-admin-2026` або Owner code `owner2026`.
-6. API Keys → встав `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `PUBLIC_BASE_URL`, `OPENAI_API_KEY`.
-7. API Keys → `Set / Repair Telegram webhook`.
-8. У Telegram: `/start owner2026`.
+- `/admin` — Web Admin із Sonya Center.
+- `/miniapp` — Telegram Mini App / mobile panel.
+- `/route-check` — версія збірки.
+- `/api/google/auth-url` — створення Google OAuth URL.
+- `/api/google/gmail/list` — Gmail список.
+- `/api/google/gmail/send` — Gmail send.
+- `/api/google/calendar/events` — Google Calendar events.
+- `/api/ai/gemini` — Gemini sidecar.
 
-## Bindings
+## Після деплою
 
-- KV: `SONYA_KV` → id `1871b5152bde4980be4c656ac27a446e`
-- D1: `DB` → database `projectseniorservice`, id `41ef1a3a-903c-494f-aff4-af2ff9d2ceef`
-- R2: intentionally disabled in v8
+1. Відкрий `/route-check` і перевір `sonya-v10-friendly-sonya-gemini-ui`.
+2. Відкрий `/admin`.
+3. У `API Keys` додай або перевір:
+   - `OPENAI_API_KEY`
+   - `GEMINI_API_KEY`
+   - `GEMINI_MODEL` = `gemini-2.5-flash`
+   - `GOOGLE_CLIENT_ID`
+   - `GOOGLE_CLIENT_SECRET`
+4. У Google Cloud OAuth Client додай redirect URI:
 
-## Основні адреси
+```text
+https://projectseniorservice.bot-worker-tenj.workers.dev/api/google/callback
+```
 
-- `/admin` — Web Admin
-- `/miniapp` — Telegram Mini App / Family OS
-- `/route-check` — версія build
-- `/health` — health
-- `/telegram/webhook/:secret` — Telegram webhook
+5. В Admin → Integrations або Google натисни `Connect Google`.
+6. Після OAuth можна питати Соню:
 
-## File policy
+```text
+покажи Gmail
+що в гугл пошті
+що в календарі сьогодні
+додай у календар завтра о 19:00 купити ліки
+спитай Gemini поясни це простіше
+```
 
-У v8 не використовується R2. Це зроблено навмисно, щоб не ризикувати 10 GB/month. Файли і фото реєструються тільки як легкі картки: title, description, mimeType, size, Telegram file_id у metadata. Binary-дані не зберігаються.
+## Політика файлів
 
-## Voice policy
+R2 вимкнено. Соня не качає фото/голос/документи в сховище. Якщо користувач явно просить зберегти файл, створюється легка metadata-картка без binary-даних.
 
-Голосові запити вимкнені. Бот просить Owner писати текстом. Це стабільніше для Workers free tier і не використовує file download/transcription pipeline.
+## Безпека
+
+Gmail send не виконується “по здогадці”. Соня відправляє лист тільки коли є явний намір, email отримувача і текст листа.

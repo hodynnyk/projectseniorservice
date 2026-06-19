@@ -1,37 +1,22 @@
-# TESTING · Соня v8
+# Testing · Соня v10
 
-## Route check
+Після деплою перевір:
 
-```json
-{
-  "version": "sonya-v8-no-r2-personality-family-reset"
-}
-```
+- `/route-check` показує `sonya-v10-friendly-sonya-gemini-ui`.
+- `/admin` відкриває Sonya Center, а не чорний екран.
+- Admin → API Keys має `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_ENABLED`.
+- Admin → Integrations показує OpenAI primary і Gemini sidecar.
+- Admin → Google показує OAuth redirect URI.
+- `/miniapp` відкриває Соню Family OS.
+- Telegram: `/start owner2026`.
+- Telegram: `погода Обухів`.
+- Telegram: `спитай Gemini коротко перевір себе`.
+- Telegram: `що в Gmail` після OAuth.
+- Telegram: `що в календарі сьогодні` після OAuth.
 
-## Manual checklist
-
-- `/route-check` показує v8.
-- `/admin` відкриває Admin UI.
-- `/miniapp` відкриває Family OS.
-- Admin login через `sonya-admin-2026`.
-- Owner login через `owner2026`.
-- API Keys → Telegram status → Set / Repair webhook.
-- Telegram `/start owner2026`.
-- Telegram `погода Обухів`.
-- Telegram voice/audio → бот відповідає, що voice вимкнено.
-- Telegram фото без підпису → бот не зберігає.
-- Telegram фото з підписом `збережи як документ` → створюється metadata-картка без R2.
-- Admin → Users → Reset Family account → safe reset працює.
-
-## Local checks used before ZIP
-
-```bash
-npm run check
-npm run smoke
-```
-
-Expected:
+Локально в пакеті прогнано:
 
 ```text
-SMOKE OK: v8 no-r2/personality/family-reset paths passed
+npm run check
+npm run smoke
 ```
