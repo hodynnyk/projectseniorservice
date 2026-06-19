@@ -1,35 +1,38 @@
-# Setup · Соня v10
+# Setup · Соня v12
 
-1. Залий ZIP у GitHub repo `projectseniorservice`.
-2. Дочекайся деплою Cloudflare Workers.
-3. Відкрий `/route-check` і перевір версію:
+1. Upload the ZIP content to GitHub repo `projectseniorservice`.
+2. Wait for Cloudflare deploy.
+3. Open `/route-check` and confirm `sonya-v12-ai-router-model-prompt`.
+4. Open `/admin`.
+5. Login with admin secret.
+6. Go to **API Keys** and add keys.
+7. Go to **AI Router** and choose the model for Telegram Bot.
 
-```text
-sonya-v10-friendly-sonya-gemini-ui
-```
+## AI Router setup
 
-4. Відкрий `/admin`.
-5. Якщо це перший запуск — натисни `Save First Setup & Enter Admin` або задай свої коди.
-6. У Admin → API Keys додай:
-   - `OPENAI_API_KEY`
-   - `TELEGRAM_BOT_TOKEN`
-   - `TELEGRAM_WEBHOOK_SECRET`
-   - `PUBLIC_BASE_URL`
-   - `GEMINI_API_KEY`
-   - `GEMINI_MODEL`
-   - `GOOGLE_CLIENT_ID`
-   - `GOOGLE_CLIENT_SECRET`
-7. У Admin → Integrations натисни `Set / Repair webhook`.
-8. У Admin → Google натисни `Connect Google`.
-
-## Стартові коди
+Open:
 
 ```text
-Admin secret: sonya-admin-2026
-Owner access code: owner2026
-Family access code: family2026
+/admin → AI Router
 ```
 
-## Важливо
+Choose:
 
-R2 не використовується. Фото, голос і документи не зберігаються binary, щоб не витрачати 10 GB/month.
+- **Active model for Telegram Bot**: OpenAI, Gemini, or Auto.
+- **Fallback if active fails**: the backup provider.
+- **Base prompt**: shared behavior prompt for all models.
+
+Recommended:
+
+```text
+Active: OpenAI / GPT primary
+Fallback: Gemini
+```
+
+If OpenAI has problems, switch:
+
+```text
+Active: Gemini
+Fallback: OpenAI / GPT
+```
+

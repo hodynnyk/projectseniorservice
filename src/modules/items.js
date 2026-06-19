@@ -3,7 +3,7 @@ import { randomId } from '../utils/crypto.js';
 import { nowIso, startOfLocalDayIso, endOfLocalDayIso } from '../utils/dates.js';
 import { logActivity } from '../services/activity.js';
 
-const TYPES = new Set(['task','reminder','note','mail','contact','file','expense','health','car','content','qa','calendar','system','list']);
+const TYPES = new Set(['task','reminder','note','mail','contact','file','expense','health','car','content','qa','calendar','system','list','workout','nutrition','meal','food_book']);
 
 export async function createItem(env, user, body = {}, source = 'api') {
   const now = nowIso();

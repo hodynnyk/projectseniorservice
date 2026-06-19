@@ -12,17 +12,24 @@ export async function geminiStatus(env) {
   };
 }
 
-export async function askGemini(env, user, prompt, source = 'api') {
+export async function askGemini(env, user, prompt, source = 'api', options = {}) {
   const apiKey = await getGeminiApiKey(env);
   if (!apiKey) return { ok: false, text: 'Gemini API key не доданий. Додайте GEMINI_API_KEY в Admin → API Keys.', provider: 'gemini' };
   const model = await getGeminiModel(env);
   const clean = String(prompt || '').trim();
   if (!clean) return { ok: false, text: 'Порожній запит для Gemini.', provider: 'gemini' };
+  const systemPrompt = String(options.systemPrompt || '').trim();
+  const context = Array.isArray(options.context) ? options.context.slice(0, 12) : [];
+  const payloadText = [
+    systemPrompt ? `SYSTEM INSTRUCTIONS:\n${systemPrompt}` : '',
+    context.length ? `PRIVATE CONTEXT JSON:\n${JSON.stringify(context, null, 2)}` : '',
+    `USER INPUT:\n${clean.slice(0, 8000)}`
+  ].filter(Boolean).join('\n\n---\n\n');
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
     body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: clean.slice(0, 8000) }] }],
+      contents: [{ role: 'user', parts: [{ text: payloadText.slice(0, 24000) }] }],
       generationConfig: { temperature: 0.35, maxOutputTokens: 900 }
     })
   });

@@ -65,16 +65,24 @@ export async function deleteRecord(env, type, id, indexes = []) {
 }
 
 export async function ensureModules(env) {
-  const existing = await getJson(env, 'modules');
-  if (existing) return existing;
-  const keys = ['mail','gmail','calendar','tasks','reminders','memory','contacts','files','family','expenses','car','health','content','qa','admin','search','backup','google','gemini','telegram','openai','weather'];
-  const modules = keys.map(moduleKey => ({
+  const keys = ['mail','gmail','calendar','tasks','reminders','memory','contacts','files','family','expenses','car','health','fitness','nutrition','food_book','content','qa','admin','search','backup','google','gemini','telegram','openai','weather'];
+  const make = (moduleKey) => ({
     key: moduleKey,
     enabled: true,
     status: ['google','gemini','openai','telegram'].includes(moduleKey) ? 'needs_credentials' : 'ready',
     updatedAt: nowIso(),
-    settings: {}
-  }));
+    settings: moduleKey === 'fitness' ? { goal: 'look_good_keep_weight', caution: 'not_medical_advice' } : moduleKey === 'nutrition' ? { mode: 'food_book_and_ration', autosave: 'explicit_only' } : {}
+  });
+  const existing = await getJson(env, 'modules');
+  if (Array.isArray(existing) && existing.length) {
+    const byKey = new Map(existing.map(m => [m.key, m]));
+    let changed = false;
+    for (const k of keys) if (!byKey.has(k)) { byKey.set(k, make(k)); changed = true; }
+    const merged = Array.from(byKey.values());
+    if (changed) await putJson(env, 'modules', merged);
+    return merged;
+  }
+  const modules = keys.map(make);
   await putJson(env, 'modules', modules);
   return modules;
 }

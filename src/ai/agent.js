@@ -1,5 +1,5 @@
 import { createItem, searchItems, listItems } from '../modules/items.js';
-import { askOpenAI } from './openai.js';
+import { askAI } from './router.js';
 import { parseLooseDueAt, formatShort } from '../utils/dates.js';
 import { logActivity } from '../services/activity.js';
 import { isWeatherIntent, getWeatherForText } from '../modules/weather.js';
@@ -73,10 +73,25 @@ ${result.text}` : result.text, ai: result });
     return finish({ text: `Контакт збережено${phone ? ': '+phone : ''}.`, item });
   }
 
+  if (isWorkoutIntent(lower)) {
+    return finish(await handleWorkoutNatural(env, user, input, lower, explicitSave, source));
+  }
+
+  if (isNutritionIntent(lower)) {
+    return finish(await handleNutritionNatural(env, user, input, lower, explicitSave, source));
+  }
+
+  if (isFoodBookIntent(lower)) {
+    return finish(await handleFoodBookNatural(env, user, input, lower, explicitSave, source));
+  }
+
   const typeRules = [
     ['expense', ['витрат','расход','потрат','грн','uah','₴']],
     ['car', ['авто','машин','kia','сефія','sephia','патруб','антифриз','ремонт']],
     ['health', ['здоров','ліки','лекар','бол','температур','симптом']],
+    ['workout', ['тренування','тренировка','упражнен','план трен','жим','присед','планка']],
+    ['nutrition', ['раціон','рацион','харч','питани','калор','білок','белок','жири','углевод','вуглевод']],
+    ['food_book', ['книга їжі','книга еды','рецепт','страва','блюдо','food book']],
     ['content', ['youtube','ютуб','відео','видео','превью','thumbnail','shorts']],
     ['qa', ['qa','баг','bug','test case','тест-кейс','apk','лог']]
   ];
@@ -94,20 +109,113 @@ ${result.text}` : result.text, ai: result });
   }
 
   const context = await searchItems(env, user, input.split(/\s+/).slice(0, 6).join(' '), 10);
-  const ai = await askOpenAI(env, {
-    instructions: `Ти приватна сімейна AI-помічниця Соня у системі projectseniorservice. Відповідай коротко, людською українською/російською/суржиком залежно від мови користувача. ${ownerSystemPrompt(user, persona.next)} Якщо треба діяти — дій тільки коли намір явний. Якщо користувач просто питає або роздумує, не зберігай це автоматично. Не вигадуй приватні дані.`,
+  const ai = await askAI(env, user, {
+    instructions: `Ти приватна сімейна AI-помічниця Соня у системі projectseniorservice. Відповідай коротко, людською українською/російською/суржиком залежно від мови користувача. ${ownerSystemPrompt(user, persona.next)} Якщо треба діяти — дій тільки коли намір явний. Якщо користувач просто питає або роздумує, не зберігай це автоматично. Не вигадуй приватні дані. Для тренувань і раціону поводься як обережна персональна помічниця: уточнюй самопочуття, не давай медичних гарантій, не зберігай їжу/тренування без явного наміру.`,
     input,
-    context: context.map(x => ({ type: x.type, title: x.title, content: x.content, dueAt: x.dueAt, tags: x.tags }))
+    context: context.map(x => ({ type: x.type, title: x.title, content: x.content, dueAt: x.dueAt, tags: x.tags })),
+    source
   });
-  await logActivity(env, { userId: user.id, source, module: 'ai', action: 'chat', message: input.slice(0,120), metadata: { ok: ai.ok, responseId: ai.rawId } });
+  await logActivity(env, { userId: user.id, source, module: 'ai', action: 'chat', message: input.slice(0,120), metadata: { ok: ai.ok, provider: ai.provider, responseId: ai.rawId, router: ai.router } });
   return finish({ text: ai.text || 'Не змогла отримати відповідь від AI.', ai });
 }
 
 function starts(s, arr) { return arr.some(x => s.startsWith(x)); }
 function hasAny(s, arr) { return arr.some(x => s.includes(x)); }
 function cleanupTitle(s) { return String(s).replace(/^(нагадай|напомни|запиши|збережи|сохрани|запомни|занеси|додай|добавь|note|remind|save)\s*/i,'').replace(/\s+/g,' ').trim().slice(0,140) || 'Нова задача'; }
-function label(type) { return ({ expense:'витрат', car:'авто', health:'здоров’я', content:'контенту', qa:'QA' })[type] || type; }
+function label(type) { return ({ expense:'витрат', car:'авто', health:'здоров’я', workout:'тренувань', nutrition:'харчування', food_book:'книги їжі', content:'контенту', qa:'QA' })[type] || type; }
 
+
+
+function isWorkoutIntent(s) { return /тренув|тренир|workout|fitness|планка|віджим|отжим|присед|тяга|гантел|бутл|крепатур|зал|форма тіла|гарний вигляд|схуд|набрати/.test(s); }
+function isNutritionIntent(s) { return /раціон|рацион|харч|питан|калор|білок|белок|жири|вуглевод|углевод|що їсти|что есть|снідан|завтрак|обід|ужин|вечеря|перекус|креатин|омега|вітамін/.test(s); }
+function isFoodBookIntent(s) { return /книга їжі|книга еды|food book|рецепт|страва|блюдо|меню|їжа|еда|продукт|курка|греч|рис|яйц|салат|суп/.test(s) && /додай|добавь|збережи|сохрани|створи|создай|книга|рецепт|страва|блюдо/.test(s); }
+
+async function handleWorkoutNatural(env, user, input, lower, explicitSave, source) {
+  const wantsPlan = /план|програм|склади|составь|створи|создай|тренування|тренировка/.test(lower);
+  if (!explicitSave && !wantsPlan) {
+    return { text: user.role === 'owner'
+      ? 'Сер, я бачу тему тренування. Можу просто порадити, створити тренування на сьогодні або занести це у ваш fitness-журнал. Як бажаєте?'
+      : 'Бачу тему тренування. Створити запис чи просто порадити?' };
+  }
+  const title = cleanupTitle(input).replace(/^тренування\s*/i, '') || 'Тренування';
+  const item = await createItem(env, user, {
+    type: 'workout',
+    title: wantsPlan ? `План тренування: ${title}`.slice(0, 150) : title,
+    content: buildWorkoutContent(input, lower),
+    visibility: 'private',
+    priority: /сьогодні|today|зараз|сейчас/.test(lower) ? 'high' : 'normal',
+    tags: ['fitness','workout','owner-body-plan'],
+    metadata: { goal: 'гарний вигляд + підтримка ваги', explicitSave: explicitSave || wantsPlan, caution: 'без великих ваг; не медична порада' }
+  }, source);
+  return { text: `Готово, сер. Я створила fitness-запис: ${item.title}
+Я триматиму це окремо від бездумних нотаток: тільки тренування, прогрес і відчуття.`, item };
+}
+
+function buildWorkoutContent(input, lower) {
+  if (/план|програм|склади|составь|створи|создай/.test(lower)) {
+    return `Запит: ${input}
+
+Чернетка логіки Соні:
+1) Розминка 5–7 хвилин: плечі, шия, таз, коліна, легка мобільність.
+2) Основний блок без великих ваг: віджимання/тяга бутлем/планка/бокова планка/легкі присідання.
+3) Обсяг підбирати по самопочуттю, без болю в суглобах і різкого перенавантаження.
+4) Після тренування: вода, білкова їжа, короткий запис “що болить/що легко”.
+
+Соня не збільшує навантаження автоматично — спершу питає самопочуття.`;
+  }
+  return input;
+}
+
+async function handleNutritionNatural(env, user, input, lower, explicitSave, source) {
+  const wantsPlan = /раціон|рацион|меню|план|склади|составь|на день|на тижд|на неделю/.test(lower);
+  if (!explicitSave && !wantsPlan) {
+    return { text: user.role === 'owner'
+      ? 'Сер, я бачу тему харчування. Можу порадити по раціону, створити план дня або занести прийом їжі. Без вашого дозволу в журнал не пишу.'
+      : 'Бачу тему харчування. Порадити, створити план чи записати прийом їжі?' };
+  }
+  const item = await createItem(env, user, {
+    type: 'nutrition',
+    title: wantsPlan ? 'Раціон / план харчування' : cleanupTitle(input),
+    content: buildNutritionContent(input, lower),
+    visibility: 'private',
+    tags: ['nutrition','ration','food'],
+    metadata: { goal: 'тримати вагу і вигляд', explicitSave: explicitSave || wantsPlan, style: 'без фанатизму, практично' }
+  }, source);
+  return { text: `Занесла у модуль харчування, сер: ${item.title}
+Я буду вести це як раціон, а не як хаотичні нотатки.`, item };
+}
+
+function buildNutritionContent(input, lower) {
+  if (/раціон|рацион|меню|план|склади|составь/.test(lower)) {
+    return `Запит: ${input}
+
+Чернетка Соні:
+— База: білок у кожний основний прийом їжі.
+— Вуглеводи: рис/гречка/картопля/овес під активність.
+— Жири: яйця/риба/олія/горіхи помірно.
+— Овочі/фрукти щодня.
+— Не урізати різко калорії, якщо ціль — гарний вигляд і стабільна вага.
+— Уточнювати апетит, сон, тренування і вагу перед змінами.`;
+  }
+  return input;
+}
+
+async function handleFoodBookNatural(env, user, input, lower, explicitSave, source) {
+  if (!explicitSave && !/додай|добавь|збережи|сохрани|створи|создай/.test(lower)) {
+    return { text: 'Сер, це схоже на ідею для книги їжі. Додати як страву/рецепт чи просто обговорюємо?' };
+  }
+  const mealType = /снідан|завтрак/.test(lower) ? 'breakfast' : /обід|обед/.test(lower) ? 'lunch' : /вечер|ужин/.test(lower) ? 'dinner' : /перекус/.test(lower) ? 'snack' : 'meal';
+  const item = await createItem(env, user, {
+    type: 'food_book',
+    title: cleanupTitle(input).replace(/^(рецепт|страва|блюдо)\s*/i,'') || 'Страва для книги їжі',
+    content: input,
+    visibility: /сім|сем|shared|друж|wife|жена/.test(lower) ? 'shared' : 'private',
+    tags: ['food_book', mealType],
+    metadata: { mealType, explicitSave: true, status: 'draft_recipe', sonyaNote: 'порадитися перед включенням у раціон' }
+  }, source);
+  return { text: `Додала в книгу їжі, сер: ${item.title}
+Я позначила як ${mealType}. Потім зможемо відсортувати по сніданках, обідах, вечері й перекусах.`, item };
+}
 
 function isGeminiIntent(s) { return /\b(gemini|геміні|джеміні)\b/i.test(s); }
 function isGmailIntent(s) { return /gmail|google mail|гугл пош|гугл почт|джимейл|джімейл|листи gmail|письма gmail|email через google|відправ.*лист|отправ.*письм/.test(s); }

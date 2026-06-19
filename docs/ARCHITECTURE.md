@@ -1,24 +1,33 @@
-# Architecture · Соня v10
+# Architecture · Соня v12
 
-Cloudflare Worker є єдиним ядром для трьох інтерфейсів:
+## Interfaces
 
-- Telegram Bot webhook.
-- Telegram Mini App HTML panel.
-- Web Admin panel.
+- Telegram Bot: natural language commands and AI answers.
+- Telegram Mini App: family panel.
+- Web Admin: Owner control center.
 
-Сховище:
+## AI Router
 
-- KV `SONYA_KV` — основний lightweight state.
-- D1 `DB` — підготовлений binding для майбутнього структурного розширення.
-- R2 — вимкнено за політикою Owner.
+All non-tool fallback AI answers go through `src/ai/router.js`.
 
-AI:
+Flow:
 
-- OpenAI / GPT — primary brain.
-- Gemini — sidecar provider, запускається тільки за явним Gemini intent або через кнопку тесту.
-- Weather — окремий tool, не вигадується GPT.
+```text
+Telegram text → agent intent detection → tools if exact intent → AI Router if general answer
+```
 
-UI:
+AI Router:
 
-- Admin v10 має Sonya Center, speech bubble, provider statuses і дружній key manager.
-- Mini App v10 має центральний блок Соні та не зберігає дані без явного наміру.
+1. Loads `TELEGRAM_AI_PROVIDER`.
+2. Loads `AI_FALLBACK_PROVIDER`.
+3. Loads `SONYA_BASE_PROMPT`.
+4. Tries active provider.
+5. If provider is missing or fails, tries fallback.
+6. Logs attempts in activity.
+
+Providers:
+
+- `src/ai/openai.js`
+- `src/modules/gemini.js`
+
+The same base prompt is supplied to both providers, so Соня keeps the same behavior when switching models.

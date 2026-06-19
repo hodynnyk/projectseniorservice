@@ -28,7 +28,7 @@ async function hit(path, init) {
 
 await hit('/api/health');
 const route = await hit('/route-check');
-if (route.data.version !== 'sonya-v10-friendly-sonya-gemini-ui') throw new Error('Wrong route-check version');
+if (route.data.version !== 'sonya-v12-ai-router-model-prompt') throw new Error('Wrong route-check version');
 const adminHtml = await hit('/admin');
 if (!String(adminHtml.data).includes('Соня Admin')) throw new Error('/admin did not return Admin UI');
 const miniHtml = await hit('/miniapp');
@@ -44,7 +44,12 @@ if (admin.data.user.role !== 'owner') throw new Error('Default admin-secret logi
 const item = await hit('/api/items', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + autoLogin.data.token }, body: JSON.stringify({ type: 'task', title: 'Smoke task', visibility: 'shared' }) });
 if (!item.data.item?.id) throw new Error('Item create failed');
 const overview = await hit('/api/admin/overview', { headers: { authorization: 'Bearer ' + autoLogin.data.token } });
-if (overview.data.overview.bindings.files !== 'metadata_only') throw new Error('File storage must be metadata_only in v10');
+if (overview.data.overview.bindings.files !== 'metadata_only') throw new Error('File storage must be metadata_only in v12');
+if (!overview.data.overview.aiRouter) throw new Error('AI Router config missing from overview');
+const routerGet = await hit('/api/admin/ai-router', { headers: { authorization: 'Bearer ' + autoLogin.data.token } });
+if (!routerGet.data.aiRouter?.basePrompt) throw new Error('AI Router base prompt missing');
+const routerSet = await hit('/api/admin/ai-router', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + autoLogin.data.token }, body: JSON.stringify({ activeProvider: 'gemini', fallbackProvider: 'openai', basePrompt: routerGet.data.aiRouter.basePrompt }) });
+if (routerSet.data.aiRouter.activeProvider !== 'gemini') throw new Error('AI Router active provider update failed');
 const reset = await hit('/api/admin/users/family/reset', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + autoLogin.data.token }, body: JSON.stringify({ mode: 'safe' }) });
 if (!reset.data.ok) throw new Error('Family reset failed');
-console.log('SMOKE OK: v10 friendly Sonya/Gemini UI paths passed');
+console.log('SMOKE OK: v12 AI Router/model prompt paths passed');

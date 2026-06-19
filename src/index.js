@@ -13,8 +13,8 @@ export default {
       if (path === '/') return redirect('/admin');
       if (path === '/miniapp') return html(miniAppHtml());
       if (['/admin','/setup','/__admin','/sonya-admin','/admin-panel'].includes(path)) return html(adminHtml());
-      if (path === '/route-check') return json({ ok: true, version: 'sonya-v10-friendly-sonya-gemini-ui', routes: { admin: '/admin', setup: '/setup', miniapp: '/miniapp' }, time: new Date().toISOString() });
-      if (path === '/health') return json({ ok: true, service: 'projectseniorservice', version: 'sonya-v10-friendly-sonya-gemini-ui', route: 'health', time: new Date().toISOString() });
+      if (path === '/route-check') return json({ ok: true, version: 'sonya-v12-ai-router-model-prompt', routes: { admin: '/admin', setup: '/setup', miniapp: '/miniapp' }, time: new Date().toISOString() });
+      if (path === '/health') return json({ ok: true, service: 'projectseniorservice', version: 'sonya-v12-ai-router-model-prompt', route: 'health', time: new Date().toISOString() });
       if (path === '/robots.txt') return text('User-agent: *\nDisallow: /\n');
       if (path.startsWith('/telegram/webhook')) {
         await ensureStorage(env);

@@ -29,7 +29,7 @@
     "DEFAULT_WEATHER_LOCATION": "Obukhiv, Ukraine",
     "FILE_STORAGE_MODE": "metadata_only",
     "VOICE_INPUT_ENABLED": "false",
-    "SONYA_VERSION": "sonya-v10-friendly-sonya-gemini-ui"
+    "SONYA_VERSION": "sonya-v11-anime-sonya-fitness-nutrition"
   },
   "kv_namespaces": [
     {

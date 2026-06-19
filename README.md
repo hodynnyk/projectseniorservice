@@ -1,63 +1,44 @@
-# projectseniorservice · Соня v10
+# projectseniorservice · Соня v12
 
-Приватна сімейна AI-система для Cloudflare Workers: Telegram Bot, Telegram Mini App і Web Admin працюють через один Worker та один KV/D1 контекст.
+Private Family OS for Cloudflare Workers: Telegram Bot, Mini App, Admin Panel, Google Gmail/Calendar, weather, Gemini side provider, fitness/nutrition/food book, no R2/voice, and AI Router for model switching.
 
-## v10 що додано
+## Version
 
-- Новий дружній **Sonya Center** в адмінці: Соня в центрі панелі, speech bubble, коментарі до змін.
-- У Mini App теж доданий живий блок Соні з репліками й поясненням дій.
-- `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_ENABLED` додані прямо в Admin → API Keys.
-- Окремий блок **AI Providers**: OpenAI/GPT primary, Gemini sidecar, Google, Telegram.
-- Кнопки тесту GPT і Gemini з адмінки.
-- Google Gmail + Calendar модулі збережені.
-- R2 залишається вимкненим: тільки metadata-only картки файлів.
-- Voice/audio залишаються вимкненими для економії.
-- Соня не зберігає все бездумно: якщо намір нечіткий, вона уточнює.
-- Owner стиль: теплий, уважний, “сер/господин”, без перебору.
-- Family reset з адмінки збережений.
+`sonya-v12-ai-router-model-prompt`
 
-## Основні маршрути
+## New in v12
 
-- `/admin` — Web Admin із Sonya Center.
-- `/miniapp` — Telegram Mini App / mobile panel.
-- `/route-check` — версія збірки.
-- `/api/google/auth-url` — створення Google OAuth URL.
-- `/api/google/gmail/list` — Gmail список.
-- `/api/google/gmail/send` — Gmail send.
-- `/api/google/calendar/events` — Google Calendar events.
-- `/api/ai/gemini` — Gemini sidecar.
+- Admin → **AI Router**.
+- Telegram bot model selector: OpenAI / Gemini / Auto.
+- Fallback provider if active model fails.
+- Shared base prompt for all AI providers.
+- The base prompt explains how Соня should speak to Owner and Family.
+- OpenAI and Gemini become interchangeable for normal Telegram answers.
+- Direct Gemini commands still work: `Gemini: ...`, `спитай Gemini ...`.
 
-## Після деплою
+## Current storage policy
 
-1. Відкрий `/route-check` і перевір `sonya-v10-friendly-sonya-gemini-ui`.
-2. Відкрий `/admin`.
-3. У `API Keys` додай або перевір:
-   - `OPENAI_API_KEY`
-   - `GEMINI_API_KEY`
-   - `GEMINI_MODEL` = `gemini-2.5-flash`
-   - `GOOGLE_CLIENT_ID`
-   - `GOOGLE_CLIENT_SECRET`
-4. У Google Cloud OAuth Client додай redirect URI:
+- R2 disabled.
+- Voice/audio disabled.
+- Photos/documents are not downloaded automatically.
+- Соня does not save everything blindly; explicit intent is required.
 
-```text
-https://projectseniorservice.bot-worker-tenj.workers.dev/api/google/callback
+## Deploy
+
+Upload the repository content to GitHub repo `projectseniorservice`. Cloudflare deploy command remains:
+
+```bash
+npx wrangler deploy
 ```
 
-5. В Admin → Integrations або Google натисни `Connect Google`.
-6. Після OAuth можна питати Соню:
+After deploy check:
 
 ```text
-покажи Gmail
-що в гугл пошті
-що в календарі сьогодні
-додай у календар завтра о 19:00 купити ліки
-спитай Gemini поясни це простіше
+https://projectseniorservice.bot-worker-tenj.workers.dev/route-check
 ```
 
-## Політика файлів
+Expected version:
 
-R2 вимкнено. Соня не качає фото/голос/документи в сховище. Якщо користувач явно просить зберегти файл, створюється легка metadata-картка без binary-даних.
-
-## Безпека
-
-Gmail send не виконується “по здогадці”. Соня відправляє лист тільки коли є явний намір, email отримувача і текст листа.
+```text
+sonya-v12-ai-router-model-prompt
+```
