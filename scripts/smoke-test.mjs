@@ -28,7 +28,7 @@ async function hit(path, init) {
 
 await hit('/api/health');
 const route = await hit('/route-check');
-if (route.data.version !== 'sonya-v21-smart-telegram-voice-maps-memory') throw new Error('Wrong route-check version');
+if (route.data.version !== 'sonya-v23-openai-gpt54-image-separated') throw new Error('Wrong route-check version');
 const adminHtml = await hit('/admin');
 if (!String(adminHtml.data).includes('Соня Admin')) throw new Error('/admin did not return Admin UI');
 const miniHtml = await hit('/miniapp');
@@ -52,4 +52,4 @@ const routerSet = await hit('/api/admin/ai-router', { method: 'POST', headers: {
 if (routerSet.data.aiRouter.activeProvider !== 'gemini') throw new Error('AI Router active provider update failed');
 const reset = await hit('/api/admin/users/family/reset', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + autoLogin.data.token }, body: JSON.stringify({ mode: 'safe' }) });
 if (!reset.data.ok) throw new Error('Family reset failed');
-console.log('SMOKE OK: v21 smart Telegram/voice/maps/memory passed');
+console.log('SMOKE OK: v23 smart Telegram/voice/maps/memory passed');

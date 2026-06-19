@@ -25,7 +25,7 @@ button,input{font:inherit}.app{max-width:560px;margin:0 auto;padding:14px 14px 8
 <body><div id="app" class="app"></div><div id="tabs" class="tabs hidden"></div>
 <script>
 try{window.Telegram&&Telegram.WebApp&&Telegram.WebApp.ready&&Telegram.WebApp.ready()}catch(e){}
-const VERSION='sonya-v21-smart-telegram-voice-maps-memory';
+const VERSION='sonya-v23-openai-gpt54-image-separated';
 const S={token:localStorage.sonya_token||'',user:null,tab:'today',today:null,items:[],google:null,loading:false};
 const app=document.getElementById('app'), tabs=document.getElementById('tabs');
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}

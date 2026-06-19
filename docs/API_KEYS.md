@@ -33,3 +33,17 @@ These are normally edited in `/admin → AI Router`, not manually:
 - Added Google OAuth Client ID preflight to prevent Google invalid_client screen.
 - Added manual API key name input for GEMINI_API_KEY / custom keys.
 - Google Connect now explains exactly what is wrong before opening OAuth.
+
+
+## OpenAI model keys
+
+Use separate keys:
+
+```text
+OPENAI_API_KEY = sk-...
+OPENAI_MODEL = gpt-5.4
+OPENAI_IMAGE_MODEL = gpt-image-1
+OPENAI_TRANSCRIBE_MODEL = whisper-1
+```
+
+Do not put image model into `OPENAI_MODEL`, because Telegram chat replies need a text model.

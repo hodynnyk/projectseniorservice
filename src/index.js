@@ -20,8 +20,8 @@ export default {
       }
       if (path === '/miniapp') return html(miniAppHtml());
       if (['/admin','/setup','/__admin','/sonya-admin','/admin-panel'].includes(path)) return html(adminHtml());
-      if (path === '/route-check') return json({ ok: true, version: 'sonya-v21-smart-telegram-voice-maps-memory', routes: { admin: '/admin', setup: '/setup', miniapp: '/miniapp' }, time: new Date().toISOString() });
-      if (path === '/health') return json({ ok: true, service: 'projectseniorservice', version: 'sonya-v21-smart-telegram-voice-maps-memory', route: 'health', time: new Date().toISOString() });
+      if (path === '/route-check') return json({ ok: true, version: 'sonya-v23-openai-gpt54-image-separated', routes: { admin: '/admin', setup: '/setup', miniapp: '/miniapp' }, time: new Date().toISOString() });
+      if (path === '/health') return json({ ok: true, service: 'projectseniorservice', version: 'sonya-v23-openai-gpt54-image-separated', route: 'health', time: new Date().toISOString() });
       if (path === '/robots.txt') return text('User-agent: *\nDisallow: /\n');
       if (path.startsWith('/telegram/webhook')) {
         await ensureStorage(env);

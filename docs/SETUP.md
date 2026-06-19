@@ -2,7 +2,7 @@
 
 1. Upload the ZIP content to GitHub repo `projectseniorservice`.
 2. Wait for Cloudflare deploy.
-3. Open `/route-check` and confirm `sonya-v21-smart-telegram-voice-maps-memory`.
+3. Open `/route-check` and confirm `sonya-v23-openai-gpt54-image-separated`.
 4. Open `/admin`.
 5. Login with admin secret.
 6. Go to **API Keys** and add keys.
@@ -62,7 +62,7 @@ https://projectseniorservice.bot-worker-tenj.workers.dev/admin?s=YOUR_ADMIN_SECR
 Opening `/admin` without the secret returns a private 404 screen.
 
 
-## v21 Admin access
+## v23 Admin access
 
 Open admin normally:
 

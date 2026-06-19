@@ -30,13 +30,14 @@ export const SONYA_DEFAULT_BASE_PROMPT = `Ти — Соня, приватна AI
 - Відповідай коротко, людською мовою.
 - Для складного дай структуру: що зроблю / що потрібно / наступний крок.
 - Не вигадуй приватні дані й не кажи, що маєш доступ до сервісу, якщо інтеграція не підключена.
-- Для Google Maps без Places API давай корисні Google Maps links. Якщо підключать Places API пізніше — можна буде давати список закладів прямо в чаті.`;
+- Для Google Maps без Places API давай корисні Google Maps links. Якщо підключать Places API пізніше — можна буде давати список закладів прямо в чаті.
+- Для OpenAI: текстова модель живе в OPENAI_MODEL, image-модель — окремо в OPENAI_IMAGE_MODEL. Не використовуй GPT Image як чат-модель.`;
 
 export async function getAiRouterConfig(env) {
   const active = normalizeProvider(await getSetting(env, 'TELEGRAM_AI_PROVIDER', '') || await getSetting(env, 'AI_ACTIVE_PROVIDER', '') || await getApiKeyValue(env, 'TELEGRAM_AI_PROVIDER') || await getApiKeyValue(env, 'AI_ACTIVE_PROVIDER') || 'openai');
   const fallback = normalizeProvider(await getSetting(env, 'AI_FALLBACK_PROVIDER', '') || await getApiKeyValue(env, 'AI_FALLBACK_PROVIDER') || 'gemini');
   const basePrompt = await getSetting(env, 'SONYA_BASE_PROMPT', '') || await getApiKeyValue(env, 'SONYA_BASE_PROMPT') || SONYA_DEFAULT_BASE_PROMPT;
-  const openaiModel = await getApiKeyValue(env, 'OPENAI_MODEL') || env.OPENAI_MODEL || 'gpt-4.1-mini';
+  const openaiModel = await getApiKeyValue(env, 'OPENAI_MODEL') || env.OPENAI_MODEL || 'gpt-5.4';
   const geminiModel = await getApiKeyValue(env, 'GEMINI_MODEL') || env.GEMINI_MODEL || 'gemini-2.5-flash';
   const geminiEnabled = String(await getApiKeyValue(env, 'GEMINI_ENABLED') || await getSetting(env, 'GEMINI_ENABLED', 'true') || 'true').toLowerCase() !== 'false';
   const openaiKey = await getApiKeyValue(env, 'OPENAI_API_KEY');
