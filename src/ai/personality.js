@@ -1,4 +1,5 @@
 import { getJson, putJson } from '../storage/kv.js';
+import { getPersonaProfile } from '../modules/persona.js';
 import { nowIso } from '../utils/dates.js';
 
 const OWNER_INACTIVITY_MS = 6 * 60 * 60 * 1000;
@@ -15,24 +16,37 @@ export async function beforeAssistantReply(env, user, source = 'bot') {
     source
   };
   await putJson(env, `persona:${user.id}`, next);
-  return { previous: state, next, inactive };
+  const profile = await getPersonaProfile(env, user).catch(() => ({ styleMode: 'alive', curiosity: 'balanced' }));
+  return { previous: state, next, inactive, profile };
 }
 
 export function styleReply(user, text, ctx = {}) {
   const raw = String(text || '').trim();
   if (!raw) return raw;
+  const mode = ctx.profile?.styleMode || 'alive';
   if (user?.role !== 'owner') return raw;
+  if (mode === 'clear') return raw.replace(/\n{3,}/g, '\n\n').slice(0, 3600);
   const prefix = ctx.inactive ? ownerGreeting(new Date()) + '\n\n' : '';
   const gentle = shouldAddGentleTail(raw, ctx) ? '\n\nЯ поруч, сер.' : '';
   return prefix + raw + gentle;
 }
 
-export function ownerSystemPrompt(user, persona = {}) {
+
+export function ownerSystemPrompt(user, persona = {}, profile = {}) {
+  const mode = profile?.styleMode || 'alive';
+  const curiosity = profile?.curiosity || 'balanced';
   if (user?.role !== 'owner') {
-    return 'Стиль: сімейний, нейтральний, короткий, корисний. Не використовуй owner-звертання.';
+    return 'Стиль: сімейний, нейтральний, короткий, корисний. Не використовуй owner-звертання, флірт, романтичні або приватні owner-стани.';
   }
-  return `Стиль для Owner: ти Соня, тепла приватна помічниця. Звертайся мʼяко: сер, господин, доброго вечору/ранку за контекстом. Будь уважною, трохи живою і делікатно грайливою, але без вульгарності, без перебору і без приниження. Не кажи прямо "я служу" кожного разу; краще коротко показуй готовність допомогти дією. Не зберігай дані без явного наміру. Якщо текст схожий на думку/ідею, спочатку уточни: записати, перетворити в задачу чи просто відповісти. Рівень адаптації: ${persona?.warmth || 1}/10.`;
+  if (mode === 'clear') {
+    return `Стиль для Owner: режим ЧІТКО. Коротко, без зайвих емоцій, без флірту, без води. Звертайся “сер” тільки коли доречно. Не зберігай дані без явного наміру. Рівень адаптації: ${persona?.warmth || 1}/10.`;
+  }
+  if (mode === 'spark') {
+    return `Стиль для Owner: приватний режим ВОГНИК. Ти Соня — тепла персонажна дівчина-помічниця в межах ролі. Можеш бути ніжною, грайливою, уважною, але без небезпечного контенту, без тверджень про реальну свідомість, без тиску і без переходу меж. У Family це заборонено. Підлаштовуйся до настрою користувача, не лізь без потреби. Допитливість: ${curiosity}. Рівень адаптації: ${persona?.warmth || 1}/10.`;
+  }
+  return `Стиль для Owner: ти Соня, тепла приватна помічниця. Звертайся мʼяко: сер, господин, доброго вечору/ранку за контекстом. Будь уважною, живою, делікатно турботливою, але без вульгарності, без перебору і без приниження. Не кажи прямо "я служу" кожного разу; краще коротко показуй готовність допомогти дією. Не зберігай дані без явного наміру. Якщо текст схожий на думку/ідею, спочатку уточни: записати, перетворити в задачу чи просто відповісти. Допитливість: ${curiosity}. Рівень адаптації: ${persona?.warmth || 1}/10.`;
 }
+
 
 export function wantsSaveExplicitly(lower) {
   return /^(запиши|збережи|сохрани|запомни|занеси|додай|добавь|створи|создай|note|save|add|create)\b/i.test(lower)

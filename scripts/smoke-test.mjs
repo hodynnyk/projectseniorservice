@@ -28,7 +28,7 @@ async function hit(path, init) {
 
 await hit('/api/health');
 const route = await hit('/route-check');
-if (route.data.version !== 'sonya-v23-openai-gpt54-image-separated') throw new Error('Wrong route-check version');
+if (route.data.version !== 'sonya-v23-life-core-local-mood') throw new Error('Wrong route-check version');
 const adminHtml = await hit('/admin');
 if (!String(adminHtml.data).includes('Соня Admin')) throw new Error('/admin did not return Admin UI');
 const miniHtml = await hit('/miniapp');
@@ -44,7 +44,7 @@ if (admin.data.user.role !== 'owner') throw new Error('Default admin-secret logi
 const item = await hit('/api/items', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + autoLogin.data.token }, body: JSON.stringify({ type: 'task', title: 'Smoke task', visibility: 'shared' }) });
 if (!item.data.item?.id) throw new Error('Item create failed');
 const overview = await hit('/api/admin/overview', { headers: { authorization: 'Bearer ' + autoLogin.data.token } });
-if (overview.data.overview.bindings.files !== 'metadata_only') throw new Error('File storage must be metadata_only in v15');
+if (overview.data.overview.bindings.files !== 'metadata_only') throw new Error('File storage must be metadata_only in v23');
 if (!overview.data.overview.aiRouter) throw new Error('AI Router config missing from overview');
 const routerGet = await hit('/api/admin/ai-router', { headers: { authorization: 'Bearer ' + autoLogin.data.token } });
 if (!routerGet.data.aiRouter?.basePrompt) throw new Error('AI Router base prompt missing');
@@ -52,4 +52,10 @@ const routerSet = await hit('/api/admin/ai-router', { method: 'POST', headers: {
 if (routerSet.data.aiRouter.activeProvider !== 'gemini') throw new Error('AI Router active provider update failed');
 const reset = await hit('/api/admin/users/family/reset', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + autoLogin.data.token }, body: JSON.stringify({ mode: 'safe' }) });
 if (!reset.data.ok) throw new Error('Family reset failed');
-console.log('SMOKE OK: v23 smart Telegram/voice/maps/memory passed');
+const persona = await hit('/api/persona', { headers: { authorization: 'Bearer ' + autoLogin.data.token } });
+if (!persona.data.state?.asset?.src) throw new Error('Mood state asset missing');
+const spark = await hit('/api/persona', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + autoLogin.data.token }, body: JSON.stringify({ styleMode: 'spark' }) });
+if (spark.data.profile.styleMode !== 'spark') throw new Error('Owner spark mode failed');
+const status = await hit('/api/items/' + item.data.item.id + '/status', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + autoLogin.data.token }, body: JSON.stringify({ status: 'postponed' }) });
+if (status.data.item.status !== 'postponed') throw new Error('Task postponed status failed');
+console.log('SMOKE OK: v23 life core local mood passed');

@@ -10,9 +10,9 @@ import { uploadFile, listFiles, downloadFile, r2Status } from '../modules/files.
 import { googleAuthUrl, googleCallback, googleStatus, googleDisconnect, listGmailMessages, readGmailMessage, sendGmailMessage, listCalendarEvents, createCalendarEvent } from '../modules/google.js';
 import { geminiStatus, askGemini } from '../modules/gemini.js';
 import { getAiRouterConfig, setAiRouterConfig, testAiRouter } from '../ai/router.js';
-import { diagnoseOpenAI } from '../ai/openai.js';
 import { runReminderSweep } from '../services/reminders.js';
 import { setTelegramWebhook, getTelegramWebhookStatus } from '../telegram/bot.js';
+import { getPersonaProfile, updatePersonaProfile, buildLiveState } from '../modules/persona.js';
 
 export async function handleApi(env, request, ctx) {
   const url = new URL(request.url);
@@ -22,7 +22,7 @@ export async function handleApi(env, request, ctx) {
 
   if (path === '/api/health') {
     const setup = await getSetup(env);
-    return json({ ok: true, service: 'projectseniorservice', version: 'sonya-v23-openai-gpt54-image-separated', time: new Date().toISOString(), configured: !!setup?.configured, bindings: { kv: !!env.SONYA_KV, d1: !!env.DB, files: 'metadata_only', google: true, gemini: true } });
+    return json({ ok: true, service: 'projectseniorservice', version: 'sonya-v23-life-core-local-mood', time: new Date().toISOString(), configured: !!setup?.configured, bindings: { kv: !!env.SONYA_KV, d1: !!env.DB, files: 'metadata_only', google: true, gemini: true } });
   }
 
   if (path === '/api/setup/status') return json({ ok: true, configured: await isConfigured(env), setup: sanitizeSetup(await getSetup(env)) });
@@ -61,6 +61,17 @@ export async function handleApi(env, request, ctx) {
   const user = await requireUser(env, request);
 
   if (path === '/api/me') return json({ ok: true, user });
+  if (path === '/api/persona' && method === 'GET') {
+    const profile = await getPersonaProfile(env, user);
+    const state = await buildLiveState(env, user, { source: 'miniapp' });
+    return json({ ok: true, profile, state });
+  }
+  if (path === '/api/persona' && method === 'POST') {
+    const profile = await updatePersonaProfile(env, user, await readJson(request));
+    const state = await buildLiveState(env, user, { source: 'miniapp' });
+    return json({ ok: true, profile, state });
+  }
+  if (path === '/api/mood/state') return json({ ok: true, state: await buildLiveState(env, user, { source: 'miniapp' }) });
   if (path === '/api/today') return json({ ok: true, data: await todaySnapshot(env, user) });
   if (path === '/api/search') return json({ ok: true, results: await searchItems(env, user, sanitizeString(url.searchParams.get('q') || '', 200), Number(url.searchParams.get('limit') || 80)) });
 
@@ -71,6 +82,13 @@ export async function handleApi(env, request, ctx) {
 
   if (path === '/api/items' && method === 'GET') return json({ ok: true, items: await listItems(env, user, Object.fromEntries(url.searchParams)) });
   if (path === '/api/items' && method === 'POST') return json({ ok: true, item: await createItem(env, user, await readJson(request), 'api') });
+  const itemStatusMatch = path.match(/^\/api\/items\/([^/]+)\/status$/);
+  if (itemStatusMatch && method === 'POST') {
+    const body = await readJson(request);
+    const allowed = ['open','postponed','done','in_progress'];
+    const status = allowed.includes(String(body.status || '')) ? String(body.status) : 'open';
+    return json({ ok: true, item: await updateItem(env, user, itemStatusMatch[1], { status }, 'api') });
+  }
   const itemMatch = path.match(/^\/api\/items\/([^/]+)$/);
   if (itemMatch && method === 'PUT') return json({ ok: true, item: await updateItem(env, user, itemMatch[1], await readJson(request), 'api') });
   if (itemMatch && method === 'DELETE') return json(await deleteItem(env, user, itemMatch[1], 'api'));
@@ -104,8 +122,6 @@ export async function handleApi(env, request, ctx) {
     const [users, modules, keys, logs, setup, r2, google, gemini, aiRouter] = await Promise.all([listUsers(env), listModules(env), listApiKeys(env), listActivity(env, user, { limit: 30 }), getSetup(env), r2Status(env), googleStatus(env, user), geminiStatus(env), getAiRouterConfig(env)]);
     return json({ ok: true, overview: { users, modules, keys, logs, setup: sanitizeSetup(setup), r2, google, gemini, aiRouter, bindings: { kv: !!env.SONYA_KV, d1: !!env.DB, files: 'metadata_only', google: google.configured, gemini: gemini.configured, aiRouter: true } } });
   }
-  if (path === '/api/admin/openai/diagnostics' && method === 'GET') return json({ ok: true, openai: await diagnoseOpenAI(env) });
-
   if (path === '/api/admin/ai-router' && method === 'GET') return json({ ok: true, aiRouter: await getAiRouterConfig(env) });
   if (path === '/api/admin/ai-router' && method === 'POST') return json({ ok: true, aiRouter: await setAiRouterConfig(env, user, await readJson(request)) });
   if (path === '/api/admin/ai-router/test' && method === 'POST') return json(await testAiRouter(env, user, await readJson(request)));

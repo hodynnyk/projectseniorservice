@@ -1,5 +1,6 @@
 import { loginWithAccessCode, getUserByTelegram } from '../services/auth.js';
 import { handleNaturalInput } from '../ai/agent.js';
+import { getOpenAIBaseUrl, getOpenAIModel, sanitizeProviderError } from '../ai/openai.js';
 import { getApiKeyValue, getSetting } from '../modules/settings.js';
 import { appendConversationTurn } from '../modules/conversation.js';
 import { logActivity } from '../services/activity.js';
@@ -62,6 +63,15 @@ export async function handleTelegramWebhook(env, request) {
   }
 
   const telegramFile = pickTelegramFile(message);
+  if (telegramFile && telegramFile.kind === 'photo' && !shouldStoreIncomingFile(input)) {
+    await sendChatAction(env, chatId, 'typing');
+    const seen = await analyzeTelegramPhoto(env, user, telegramFile, input || 'Опиши фото і дай корисну відповідь.');
+    await sendMessage(env, chatId, seen.ok
+      ? seen.text
+      : (user.role === 'owner' ? `Сер, фото бачу, але vision зараз не відповів: ${escapeTelegram(seen.error || 'unknown')}. Файл не зберігала.` : `Фото бачу, але vision зараз не відповів: ${escapeTelegram(seen.error || 'unknown')}.`));
+    return new Response('ok');
+  }
+
   if (telegramFile && !shouldStoreIncomingFile(input)) {
     await sendMessage(env, chatId, user.role === 'owner'
       ? 'Сер, файл бачу. За вашим правилом я не тягну його в R2 і не зберігаю без явної команди. Якщо треба — надішліть із підписом “збережи як документ” або “додай у сімейні файли”.'
@@ -166,8 +176,16 @@ export async function sendMessage(env, chatId, text, replyMarkup = undefined) {
   return res.json().catch(() => ({ ok: res.ok, status: res.status }));
 }
 
+export async function sendPhoto(env, chatId, photoUrl, caption = '') {
+  const token = await getApiKeyValue(env, 'TELEGRAM_BOT_TOKEN');
+  if (!token || !chatId || !photoUrl) return { ok: false, skipped: true };
+  const body = { chat_id: chatId, photo: photoUrl, caption: String(caption || '').slice(0, 900), parse_mode: 'HTML' };
+  const res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  return res.json().catch(() => ({ ok: res.ok, status: res.status }));
+}
+
 export async function miniAppKeyboard(env) {
-  // v21: Telegram bot replies with clean contextual text only.
+  // v22: Telegram bot replies with clean contextual text only.
   // The Mini App is opened separately through Telegram Mini Apps / bot menu.
   return undefined;
 }
@@ -181,6 +199,51 @@ export async function notifyUser(env, userId, text) {
 }
 
 
+async function analyzeTelegramPhoto(env, user, fileInfo, caption = '') {
+  const openaiKey = await getApiKeyValue(env, 'OPENAI_API_KEY');
+  const token = await getApiKeyValue(env, 'TELEGRAM_BOT_TOKEN');
+  if (!openaiKey) return { ok: false, error: 'OPENAI_API_KEY не налаштований' };
+  if (!token) return { ok: false, error: 'TELEGRAM_BOT_TOKEN не налаштований' };
+  if (fileInfo.size && fileInfo.size > 1400 * 1024) return { ok: false, error: 'фото завелике для прямого vision без R2' };
+  const infoRes = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${encodeURIComponent(fileInfo.fileId)}`);
+  const info = await infoRes.json().catch(() => ({}));
+  const filePath = info?.result?.file_path;
+  if (!infoRes.ok || !info.ok || !filePath) return { ok: false, error: info.description || 'Telegram getFile failed' };
+  const fileRes = await fetch(`https://api.telegram.org/file/bot${token}/${filePath}`);
+  if (!fileRes.ok) return { ok: false, error: `Telegram file download failed ${fileRes.status}` };
+  const blob = await fileRes.blob();
+  const dataUrl = await blobToDataUrl(blob, fileInfo.mimeType || 'image/jpeg');
+  const baseUrl = await getOpenAIBaseUrl(env, openaiKey);
+  const model = await getOpenAIModel(env, baseUrl);
+  const system = user?.role === 'owner'
+    ? 'Ти Соня, приватна помічниця Owner. Проаналізуй фото коротко, корисно, українською/суржиком. Не зберігай файл, не вигадуй приватні дані.'
+    : 'Ти сімейна помічниця Соня. Проаналізуй фото нейтрально, коротко і корисно. Не зберігай файл.';
+  const body = {
+    model,
+    messages: [
+      { role: 'system', content: system },
+      { role: 'user', content: [
+        { type: 'text', text: String(caption || 'Що на фото? Дай корисну відповідь.').slice(0, 1200) },
+        { type: 'image_url', image_url: { url: dataUrl } }
+      ] }
+    ]
+  };
+  const res = await fetch(`${baseUrl}/chat/completions`, { method: 'POST', headers: { authorization: `Bearer ${openaiKey}`, 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  const text = data.choices?.[0]?.message?.content || data.choices?.[0]?.text || '';
+  if (!res.ok || !text) return { ok: false, error: sanitizeProviderError(data.error?.message || data.error || `vision failed ${res.status}`) };
+  await logActivity(env, { userId: user.id, source: 'telegram_bot', module: 'vision', action: 'photo_analyze', message: String(caption || '').slice(0, 80), metadata: { stored: false, model } });
+  return { ok: true, text: String(text).slice(0, 3600), stored: false };
+}
+
+async function blobToDataUrl(blob, mimeType = 'image/jpeg') {
+  const arr = new Uint8Array(await blob.arrayBuffer());
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < arr.length; i += chunk) binary += String.fromCharCode(...arr.subarray(i, i + chunk));
+  return `data:${mimeType};base64,${btoa(binary)}`;
+}
+
 async function transcribeTelegramAudio(env, voiceInfo) {
   const openaiKey = await getApiKeyValue(env, 'OPENAI_API_KEY');
   const token = await getApiKeyValue(env, 'TELEGRAM_BOT_TOKEN');
@@ -188,6 +251,8 @@ async function transcribeTelegramAudio(env, voiceInfo) {
   if (!token) return { ok: false, error: 'TELEGRAM_BOT_TOKEN не налаштований' };
   if (!voiceInfo?.fileId) return { ok: false, error: 'немає Telegram file_id' };
   if (voiceInfo.size && voiceInfo.size > 18 * 1024 * 1024) return { ok: false, error: 'голосове завелике для прямої обробки без R2' };
+  const baseUrl = await getOpenAIBaseUrl(env, openaiKey);
+  const transcribeModel = await getApiKeyValue(env, 'OPENAI_TRANSCRIBE_MODEL') || env.OPENAI_TRANSCRIBE_MODEL || 'whisper-1';
 
   const infoRes = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${encodeURIComponent(voiceInfo.fileId)}`);
   const info = await infoRes.json().catch(() => ({}));
@@ -199,18 +264,18 @@ async function transcribeTelegramAudio(env, voiceInfo) {
   const blob = await fileRes.blob();
 
   const fd = new FormData();
-  fd.append('model', 'whisper-1');
+  fd.append('model', transcribeModel);
   fd.append('language', 'uk');
   fd.append('response_format', 'json');
   fd.append('file', blob, voiceInfo.name || 'telegram-voice.ogg');
 
-  const trRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+  const trRes = await fetch(`${baseUrl}/audio/transcriptions`, {
     method: 'POST',
     headers: { authorization: `Bearer ${openaiKey}` },
     body: fd
   });
   const data = await trRes.json().catch(() => ({}));
-  if (!trRes.ok) return { ok: false, error: data.error?.message || data.error || `OpenAI transcription failed ${trRes.status}` };
+  if (!trRes.ok) return { ok: false, error: sanitizeProviderError(data.error?.message || data.error || `OpenAI transcription failed ${trRes.status}`) }; 
   return { ok: true, text: String(data.text || '').trim(), storedAudio: false };
 }
 

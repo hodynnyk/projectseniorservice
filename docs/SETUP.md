@@ -2,7 +2,7 @@
 
 1. Upload the ZIP content to GitHub repo `projectseniorservice`.
 2. Wait for Cloudflare deploy.
-3. Open `/route-check` and confirm `sonya-v23-openai-gpt54-image-separated`.
+3. Open `/route-check` and confirm `sonya-v22-openai-base-url-secureapi`.
 4. Open `/admin`.
 5. Login with admin secret.
 6. Go to **API Keys** and add keys.
@@ -62,7 +62,7 @@ https://projectseniorservice.bot-worker-tenj.workers.dev/admin?s=YOUR_ADMIN_SECR
 Opening `/admin` without the secret returns a private 404 screen.
 
 
-## v23 Admin access
+## v22 Admin access
 
 Open admin normally:
 
@@ -71,3 +71,14 @@ https://projectseniorservice.bot-worker-tenj.workers.dev/admin
 ```
 
 The admin screen accepts only the admin secret. Owner/family access codes are not displayed on the admin login screen.
+
+## v22 SecureAPI / OpenAI-compatible setup
+In Admin → API Keys add/update:
+
+```text
+OPENAI_API_KEY=sk-sec-...
+OPENAI_BASE_URL=https://3xanny-secureapi.hf.space/v1
+OPENAI_MODEL=gpt-5.4-mini
+```
+
+`gpt-5.4-mini` is safer for normal Telegram conversation. `gpt-5.5` is more expensive on providers with model multipliers.

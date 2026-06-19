@@ -65,7 +65,7 @@ export async function deleteRecord(env, type, id, indexes = []) {
 }
 
 export async function ensureModules(env) {
-  const keys = ['mail','gmail','calendar','tasks','reminders','memory','contacts','files','family','expenses','car','health','fitness','nutrition','food_book','content','qa','admin','search','backup','google','gemini','telegram','openai','weather'];
+  const keys = ['mail','gmail','calendar','tasks','reminders','memory','contacts','files','family','expenses','car','health','fitness','nutrition','food_book','content','qa','admin','search','backup','google','gemini','telegram','openai','weather','persona','mood','cookbook','life_core','privacy','local_first'];
   const make = (moduleKey) => ({
     key: moduleKey,
     enabled: true,

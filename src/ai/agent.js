@@ -1,4 +1,4 @@
-import { createItem, searchItems, listItems } from '../modules/items.js';
+import { createItem, searchItems, listItems, updateItem } from '../modules/items.js';
 import { getConversationContext, appendConversationTurn, clearConversationContext } from '../modules/conversation.js';
 import { askAI } from './router.js';
 import { parseLooseDueAt, formatShort } from '../utils/dates.js';
@@ -12,7 +12,7 @@ import { beforeAssistantReply, styleReply, ownerSystemPrompt, wantsSaveExplicitl
 export async function handleNaturalInput(env, user, text, source = 'bot') {
   const input = String(text || '').trim();
   const persona = user ? await beforeAssistantReply(env, user, source) : { inactive: false, next: {} };
-  const finish = (payload) => ({ ...payload, text: styleReply(user, payload.text, { inactive: persona.inactive, source }) });
+  const finish = (payload) => ({ ...payload, text: styleReply(user, payload.text, { inactive: persona.inactive, source, profile: persona.profile }) });
 
   if (!input) return finish({ text: user?.role === 'owner' ? 'Я поруч, сер. Напишіть команду або киньте думку — я акуратно розберу.' : 'Я поруч. Напиши команду або кинь задачу.' });
   const lower = input.toLowerCase();
@@ -49,10 +49,23 @@ ${result.text}` : result.text, ai: result });
     return finish(result);
   }
 
-  if (isTodayOverviewIntent(lower)) {
-    const active = (await listItems(env, user, { limit: 50 })).filter(x => x.status !== 'done').slice(0, 12);
-    return finish({ text: active.length ? `Активне:\n${active.map((x,i)=>`${i+1}. ${x.title}${x.dueAt ? ' — '+formatShort(x.dueAt) : ''}`).join('\n')}` : 'Активних задач поки немає.' });
+  if (isTaskStatusIntent(lower)) {
+    return finish(await handleTaskStatusNatural(env, user, input, lower, source));
   }
+
+  if (isTodayOverviewIntent(lower)) {
+    const rows = await listItems(env, user, { limit: 80 });
+    const active = rows.filter(x => ['task','reminder'].includes(x.type) && !['done','archived','postponed'].includes(x.status)).slice(0, 12);
+    const postponed = rows.filter(x => ['task','reminder'].includes(x.type) && x.status === 'postponed').slice(0, 8);
+    const line = active.length ? `Активне:\n${active.map((x,i)=>`${i+1}. ${x.title}${x.dueAt ? ' — '+formatShort(x.dueAt) : ''}`).join('\n')}` : 'Активних задач поки немає.';
+    const p = postponed.length ? `\n\nВідкладене:\n${postponed.map((x,i)=>`${i+1}. ${x.title}`).join('\n')}` : '';
+    return finish({ text: line + p });
+  }
+
+  if (isWebResearchIntent(lower)) {
+    return finish(await handleWebResearchNatural(env, user, input, lower, source));
+  }
+
 
   if (isMemorySearchIntent(lower)) {
     const q = input.replace(/^(знайди|найди|search|пошукай)\s*/i, '').replace(/(у|в)\s+(памʼяті|пам'яті|памяті|замітках|нотатках|задачах|записах)/gi, '').trim();
@@ -114,6 +127,13 @@ ${result.text}` : result.text, ai: result });
     }
   }
 
+  if (hasAny(lower, ['секрет','тайна','таємниц','тайны','secret'])) {
+    if (user.role !== 'owner') return finish({ text: 'Секретні записи доступні тільки Owner.' });
+    if (!explicitSave && !starts(lower, ['запиши','збережи','сохрани','запомни','занеси'])) return finish({ text: needsClarificationBeforeSave(input, 'секретний Owner-only запис') });
+    const item = await createItem(env, user, { type: 'secret', title: cleanupTitle(input).slice(0,100), content: input, visibility: 'private', tags: ['secret','owner-only'], metadata: { ownerOnly: true, localFirstRecommended: true } }, source);
+    return finish({ text: `Секрет збережено тільки для Owner: ${item.title}`, item });
+  }
+
   if (starts(lower, ['запиши','збережи','сохрани','запомни','занеси','заметка','нотатка','note','save'])) {
     const item = await createItem(env, user, { type: 'note', title: cleanupTitle(input), content: input, visibility: hasAny(lower, ['сім','сем','shared']) ? 'shared' : 'private', tags: ['note'], metadata: { explicitSave: true } }, source);
     return finish({ text: `Нотатку збережено: ${item.title}`, item });
@@ -123,7 +143,7 @@ ${result.text}` : result.text, ai: result });
   const dialogContext = await getConversationContext(env, user, source);
   await appendConversationTurn(env, user, source, 'user', input, { kind: 'message' });
   const ai = await askAI(env, user, {
-    instructions: `Ти приватна сімейна AI-помічниця Соня у системі projectseniorservice. Відповідай коротко, людською українською/російською/суржиком залежно від мови користувача. ${ownerSystemPrompt(user, persona.next)} Ти маєш короткий rolling-контекст поточного діалогу: використовуй його, щоб не відповідати деревʼяно і не плутати пошук місць із пошуком задач. Якщо треба діяти — дій тільки коли намір явний. Якщо користувач просто питає або роздумує, не зберігай це автоматично як задачу. Не вигадуй приватні дані. Для тренувань і раціону поводься як обережна персональна помічниця: уточнюй самопочуття, не давай медичних гарантій, не зберігай їжу/тренування без явного наміру.`,
+    instructions: `Ти приватна сімейна AI-помічниця Соня у системі projectseniorservice. Відповідай коротко, людською українською/російською/суржиком залежно від мови користувача. ${ownerSystemPrompt(user, persona.next, persona.profile)} Ти маєш короткий rolling-контекст поточного діалогу: використовуй його, щоб не відповідати деревʼяно і не плутати пошук місць із пошуком задач. Якщо треба діяти — дій тільки коли намір явний. Якщо користувач просто питає або роздумує, не зберігай це автоматично як задачу. Не вигадуй приватні дані. Для тренувань і раціону поводься як обережна персональна помічниця: уточнюй самопочуття, не давай медичних гарантій, не зберігай їжу/тренування без явного наміру.`,
     input,
     context: [
       ...dialogContext.map(x => ({ type: 'dialog', role: x.role, content: x.text, at: x.at })),
@@ -137,6 +157,63 @@ ${result.text}` : result.text, ai: result });
   return finish({ text: textOut, ai });
 }
 
+
+
+function isTaskStatusIntent(lower) {
+  const s = String(lower || '');
+  return /^(заверши|закрий|виконано|выполнено|готово|відклади|отложи|постав на паузу|поверни|верни|віднови|возобнови)\b/.test(s)
+    || /покажи активні задач|покажи активные задач|активні задачі|активные задачи/.test(s);
+}
+
+async function handleTaskStatusNatural(env, user, input, lower, source) {
+  if (/покажи активні задач|покажи активные задач|активні задачі|активные задачи/.test(lower)) {
+    const rows = (await listItems(env, user, { limit: 120 })).filter(x => ['task','reminder'].includes(x.type));
+    const active = rows.filter(x => !['done','archived','postponed'].includes(x.status)).slice(0, 15);
+    const postponed = rows.filter(x => x.status === 'postponed').slice(0, 10);
+    const done = rows.filter(x => x.status === 'done').slice(0, 5);
+    return { text: [
+      active.length ? `Активні:\n${active.map((x,i)=>`${i+1}. ${x.title}`).join('\n')}` : 'Активних задач немає.',
+      postponed.length ? `Відкладені:\n${postponed.map((x,i)=>`${i+1}. ${x.title}`).join('\n')}` : '',
+      done.length ? `Останні завершені:\n${done.map((x,i)=>`${i+1}. ${x.title}`).join('\n')}` : ''
+    ].filter(Boolean).join('\n\n') };
+  }
+  let status = '';
+  if (/^(заверши|закрий|виконано|выполнено|готово)\b/.test(lower)) status = 'done';
+  if (/^(відклади|отложи|постав на паузу)\b/.test(lower)) status = 'postponed';
+  if (/^(поверни|верни|віднови|возобнови)\b/.test(lower)) status = 'open';
+  if (!status) return { text: 'Сер, який статус поставити: нова, відкласти чи завершено?' };
+  const q = input.replace(/^(заверши|закрий|виконано|выполнено|готово|відклади|отложи|постав на паузу|поверни|верни|віднови|возобнови)\s*/i, '')
+    .replace(/\b(задачу|задача|план|в нові|в новые|назад|знову|снова)\b/gi, ' ')
+    .replace(/\s+/g, ' ').trim();
+  if (!q) return { text: 'Сер, напишіть назву задачі. Наприклад: “заверши задачу тренування”.' };
+  const candidates = (await searchItems(env, user, q, 12)).filter(x => ['task','reminder','workout','nutrition'].includes(x.type));
+  const exactish = candidates.filter(x => x.title.toLowerCase().includes(q.toLowerCase()) || q.toLowerCase().includes(x.title.toLowerCase()));
+  const rows = exactish.length ? exactish : candidates;
+  if (!rows.length) return { text: `Не знайшла задачу по “${q}”. Можу показати активні задачі, щоб ви вибрали точну назву.` };
+  if (rows.length > 1) return { text: `Знайшла кілька схожих. Уточніть, яку саме:\n${rows.slice(0,6).map((x,i)=>`${i+1}. ${x.title} — ${x.status}`).join('\n')}` };
+  const item = await updateItem(env, user, rows[0].id, { status }, source);
+  const label = status === 'done' ? 'завершено' : status === 'postponed' ? 'відкладено' : 'повернуто в нові';
+  return { text: `Готово: “${item.title}” → ${label}.`, item };
+}
+
+function isWebResearchIntent(lower) {
+  const s = String(lower || '');
+  return /^(знайди|найди|пошукай|search|підбери|подбери)\b/.test(s)
+    && /номер|телефон|контакт|адрес|сайт|соц|instagram|інст|youtube|ютуб|кіно|фільм|фильм|серіал|сериал|книг|рішення|решение|як|where|near/.test(s);
+}
+
+async function handleWebResearchNatural(env, user, input, lower, source) {
+  const q = input.replace(/^(знайди|найди|пошукай|search|підбери|подбери)\s*/i, '').trim() || input;
+  const google = `https://www.google.com/search?q=${encodeURIComponent(q)}`;
+  const maps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
+  const youtube = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
+  const lines = [`Я підготувала пошук без зайвого:`, `Google: ${google}`];
+  if (/заклад|локац|місце|место|адрес|кафе|ресторан|магазин|телефон|номер|поруч|рядом/.test(lower)) lines.push(`Maps: ${maps}`);
+  if (/youtube|ютуб|відео|video|кіно|фільм|фильм|серіал|сериал/.test(lower)) lines.push(`YouTube: ${youtube}`);
+  lines.push('', 'Коли підключимо окремий Search/Places API — я зможу сама повертати вже готові телефони, адреси й короткий список варіантів прямо в чаті.');
+  await logActivity(env, { userId: user.id, source, module: 'search', action: 'prepared_links', message: q, metadata: { google, maps, youtube } });
+  return { text: lines.join('\n') };
+}
 
 function isTodayOverviewIntent(lower) {
   const s = String(lower || '').trim();

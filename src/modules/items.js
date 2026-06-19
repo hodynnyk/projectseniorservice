@@ -3,7 +3,7 @@ import { randomId } from '../utils/crypto.js';
 import { nowIso, startOfLocalDayIso, endOfLocalDayIso } from '../utils/dates.js';
 import { logActivity } from '../services/activity.js';
 
-const TYPES = new Set(['task','reminder','note','mail','contact','file','expense','health','car','content','qa','calendar','system','list','workout','nutrition','meal','food_book']);
+const TYPES = new Set(['task','reminder','note','mail','contact','file','expense','health','car','content','qa','calendar','system','list','workout','nutrition','meal','food_book','secret','profile','recipe','life_need']);
 
 export async function createItem(env, user, body = {}, source = 'api') {
   const now = nowIso();
@@ -72,19 +72,22 @@ export async function todaySnapshot(env, user) {
   const now = nowIso();
   const start = startOfLocalDayIso();
   const end = endOfLocalDayIso();
-  const open = rows.filter(x => x.status !== 'done');
-  const today = open.filter(x => x.dueAt && x.dueAt >= start && x.dueAt <= end).sort(sortDue);
-  const overdue = open.filter(x => x.dueAt && x.dueAt < now).sort(sortDue);
-  const next = open.filter(x => x.dueAt && x.dueAt >= now).sort(sortDue).slice(0, 8);
+  const open = rows.filter(x => !['done','archived'].includes(x.status));
+  const active = open.filter(x => x.status !== 'postponed');
+  const postponed = rows.filter(x => x.status === 'postponed');
+  const done = rows.filter(x => x.status === 'done');
+  const today = active.filter(x => x.dueAt && x.dueAt >= start && x.dueAt <= end).sort(sortDue);
+  const overdue = active.filter(x => x.dueAt && x.dueAt < now).sort(sortDue);
+  const next = active.filter(x => x.dueAt && x.dueAt >= now).sort(sortDue).slice(0, 8);
   const recent = rows.slice(0, 8);
-  const important = open.filter(x => x.priority === 'high').slice(0, 8);
-  return { today, overdue, next, recent, important, counts: { open: open.length, today: today.length, overdue: overdue.length, all: rows.length } };
+  const important = active.filter(x => x.priority === 'high').slice(0, 8);
+  return { today, overdue, next, recent, important, counts: { open: active.length, postponed: postponed.length, done: done.length, today: today.length, overdue: overdue.length, all: rows.length } };
 }
 
 export async function dueReminderItems(env) {
   const rows = await listByIndex(env, 'items:ids', 'items', 5000);
   const now = nowIso();
-  return rows.filter(x => ['task','reminder'].includes(x.type) && x.status !== 'done' && x.dueAt && x.dueAt <= now && !x.metadata?.lastNotifiedAt);
+  return rows.filter(x => ['task','reminder'].includes(x.type) && !['done','archived','postponed'].includes(x.status) && x.dueAt && x.dueAt <= now && !x.metadata?.lastNotifiedAt);
 }
 
 function normalizeItem(item) {
@@ -101,7 +104,7 @@ function normalizeItem(item) {
     updatedAt: item.updatedAt || nowIso(),
     dueAt: item.dueAt || null,
     priority: ['low','normal','high','urgent'].includes(item.priority) ? item.priority : 'normal',
-    status: ['open','in_progress','done','archived'].includes(item.status) ? item.status : 'open',
+    status: ['open','new','in_progress','postponed','done','archived'].includes(item.status) ? (item.status === 'new' ? 'open' : item.status) : 'open',
     tags: Array.isArray(item.tags) ? item.tags.map(x => String(x).slice(0, 40)).slice(0, 20) : [],
     source: String(item.source || 'api').slice(0, 40),
     linkedItems: Array.isArray(item.linkedItems) ? item.linkedItems.slice(0, 30) : [],
