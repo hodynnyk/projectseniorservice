@@ -44,15 +44,23 @@ sonya-v12-ai-router-model-prompt
 ```
 
 
-## v17 change
+## v18 change
 Telegram Bot no longer attaches the inline Mini App button to every answer. Sonya now replies with clean contextual text only; Mini App is expected to be opened separately through Telegram Mini Apps / bot menu.
 
 
-## Telegram UI policy v17
+## Telegram UI policy v18
 Telegram Bot replies without automatic Mini App button. The panel is expected to be opened separately through Telegram Mini Apps / bot menu.
 
 
-## v17 Google JSON import
+## v18 Google JSON import
 - Admin → Google now accepts full Google client_secret JSON paste/import.
 - It stores GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET automatically.
 - It checks whether `/api/google/callback` is present in Authorized redirect URIs.
+
+
+## v18 clean Mini App / secure Admin gate
+- Mini App redesigned as a clean read-only dashboard: no ask box, no creation forms, no noisy extra buttons.
+- Mini App shows only: Today, open tasks, body/food journal, and system status.
+- Admin UI is no longer publicly visible on `/admin`; open it through `/admin?s=YOUR_ADMIN_SECRET`.
+- Sonya visual assets are used contextually: welcome, tasks/night, body/fitness, system/work.
+- R2 remains disabled; images are embedded as compressed Worker assets.

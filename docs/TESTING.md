@@ -1,4 +1,4 @@
-# Testing · Соня v17
+# Testing · Соня v18
 
 Run locally:
 
@@ -9,7 +9,7 @@ npm run smoke
 
 Manual after deploy:
 
-1. `/route-check` shows `sonya-v17-google-json-import-red-sonya`.
+1. `/route-check` shows `sonya-v18-clean-miniapp-secure-admin`.
 2. `/admin` opens.
 3. Admin → API Keys shows Gemini/OpenAI keys.
 4. Admin → AI Router opens.
@@ -20,12 +20,12 @@ Manual after deploy:
 9. If active provider has no key, Соня tries fallback.
 
 
-## v17 Google account picker + welcome avatar
+## v18 Google account picker + welcome avatar
 - Added real anime Соня visual from the provided reference as a Worker-served asset.
 - Added Google OAuth Client ID preflight to prevent Google invalid_client screen.
 - Added manual API key name input for GEMINI_API_KEY / custom keys.
 - Google Connect now explains exactly what is wrong before opening OAuth.
 
 
-## Telegram UI policy v17
+## Telegram UI policy v18
 Telegram Bot replies without automatic Mini App button. The panel is expected to be opened separately through Telegram Mini Apps / bot menu.
