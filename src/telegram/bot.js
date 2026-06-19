@@ -1,6 +1,7 @@
 import { loginWithAccessCode, getUserByTelegram } from '../services/auth.js';
 import { handleNaturalInput } from '../ai/agent.js';
 import { getApiKeyValue, getSetting } from '../modules/settings.js';
+import { appendConversationTurn } from '../modules/conversation.js';
 import { logActivity } from '../services/activity.js';
 import { registerFileMetadata } from '../modules/files.js';
 
@@ -37,9 +38,26 @@ export async function handleTelegramWebhook(env, request) {
   const input = text;
 
   if (message.voice || message.audio) {
-    await sendMessage(env, chatId, user.role === 'owner'
-      ? 'Сер, голосові запити я зараз не обробляю: вимкнула цей шлях, щоб не тягнути зайві файли й не витрачати ресурси. Напишіть текстом — я відпрацюю акуратно.'
-      : 'Голос зараз вимкнено для економії ресурсів. Напиши, будь ласка, текстом.');
+    const voiceInfo = message.voice
+      ? { fileId: message.voice.file_id, size: message.voice.file_size || 0, duration: message.voice.duration || 0, mimeType: message.voice.mime_type || 'audio/ogg', name: 'telegram-voice.ogg' }
+      : { fileId: message.audio.file_id, size: message.audio.file_size || 0, duration: message.audio.duration || 0, mimeType: message.audio.mime_type || 'audio/mpeg', name: message.audio.file_name || 'telegram-audio.mp3' };
+    try {
+      await sendChatAction(env, chatId, 'typing');
+      const tr = await transcribeTelegramAudio(env, voiceInfo);
+      if (!tr.ok || !tr.text) {
+        await sendMessage(env, chatId, user.role === 'owner'
+          ? `Сер, голосове отримала, але не змогла розшифрувати: ${escapeTelegram(tr.error || 'невідома помилка')}. Аудіо не зберігала.`
+          : `Голосове отримала, але не змогла розшифрувати: ${escapeTelegram(tr.error || 'невідома помилка')}.`);
+        return new Response('ok');
+      }
+      await appendConversationTurn(env, user, 'telegram_bot', 'user_voice', tr.text, { duration: voiceInfo.duration, storedAudio: false });
+      const result = await handleNaturalInput(env, user, tr.text, 'telegram_bot');
+      await sendMessage(env, chatId, `${user.role === 'owner' ? 'Почула, сер' : 'Почула'}: “${escapeTelegram(tr.text.slice(0, 220))}”\n\n${result.text}`);
+    } catch (err) {
+      await sendMessage(env, chatId, user.role === 'owner'
+        ? `Сер, голосове не обробилось. Аудіо не зберігала. Причина: ${escapeTelegram(err.message || 'unknown')}`
+        : `Голосове не обробилось. Причина: ${escapeTelegram(err.message || 'unknown')}`);
+    }
     return new Response('ok');
   }
 
@@ -149,7 +167,7 @@ export async function sendMessage(env, chatId, text, replyMarkup = undefined) {
 }
 
 export async function miniAppKeyboard(env) {
-  // v15: Telegram bot replies with clean contextual text only.
+  // v21: Telegram bot replies with clean contextual text only.
   // The Mini App is opened separately through Telegram Mini Apps / bot menu.
   return undefined;
 }
@@ -160,6 +178,50 @@ export async function notifyUser(env, userId, text) {
   if (!user?.telegramId) return { ok: false, skipped: true, reason: 'telegram not linked' };
   await logActivity(env, { userId, source: 'scheduled', module: 'reminders', action: 'notify', message: text });
   return sendMessage(env, user.telegramId, text);
+}
+
+
+async function transcribeTelegramAudio(env, voiceInfo) {
+  const openaiKey = await getApiKeyValue(env, 'OPENAI_API_KEY');
+  const token = await getApiKeyValue(env, 'TELEGRAM_BOT_TOKEN');
+  if (!openaiKey) return { ok: false, error: 'OPENAI_API_KEY не налаштований' };
+  if (!token) return { ok: false, error: 'TELEGRAM_BOT_TOKEN не налаштований' };
+  if (!voiceInfo?.fileId) return { ok: false, error: 'немає Telegram file_id' };
+  if (voiceInfo.size && voiceInfo.size > 18 * 1024 * 1024) return { ok: false, error: 'голосове завелике для прямої обробки без R2' };
+
+  const infoRes = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${encodeURIComponent(voiceInfo.fileId)}`);
+  const info = await infoRes.json().catch(() => ({}));
+  const filePath = info?.result?.file_path;
+  if (!infoRes.ok || !info.ok || !filePath) return { ok: false, error: info.description || 'Telegram getFile failed' };
+
+  const fileRes = await fetch(`https://api.telegram.org/file/bot${token}/${filePath}`);
+  if (!fileRes.ok) return { ok: false, error: `Telegram file download failed ${fileRes.status}` };
+  const blob = await fileRes.blob();
+
+  const fd = new FormData();
+  fd.append('model', 'whisper-1');
+  fd.append('language', 'uk');
+  fd.append('response_format', 'json');
+  fd.append('file', blob, voiceInfo.name || 'telegram-voice.ogg');
+
+  const trRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${openaiKey}` },
+    body: fd
+  });
+  const data = await trRes.json().catch(() => ({}));
+  if (!trRes.ok) return { ok: false, error: data.error?.message || data.error || `OpenAI transcription failed ${trRes.status}` };
+  return { ok: true, text: String(data.text || '').trim(), storedAudio: false };
+}
+
+async function sendChatAction(env, chatId, action = 'typing') {
+  const token = await getApiKeyValue(env, 'TELEGRAM_BOT_TOKEN');
+  if (!token || !chatId) return { ok: false };
+  return fetch(`https://api.telegram.org/bot${token}/sendChatAction`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, action })
+  }).then(r => r.json()).catch(() => ({ ok: false }));
 }
 
 function pickTelegramFile(message) {

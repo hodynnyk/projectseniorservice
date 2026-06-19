@@ -9,7 +9,7 @@ npm run smoke
 
 Manual after deploy:
 
-1. `/route-check` shows `sonya-v20-miniapp-json-human-fix`.
+1. `/route-check` shows `sonya-v21-smart-telegram-voice-maps-memory`.
 2. `/admin` opens.
 3. Admin → API Keys shows Gemini/OpenAI keys.
 4. Admin → AI Router opens.

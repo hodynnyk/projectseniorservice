@@ -10,7 +10,7 @@ export function adminHtml() {
 </style>
 </head>
 <body><div id="root"></div><script>
-var VERSION='sonya-v20-miniapp-json-human-fix';
+var VERSION='sonya-v21-smart-telegram-voice-maps-memory';
 var S={token:localStorage.sonya_admin_token||'',user:null,tab:'center',overview:null};
 var root=document.getElementById('root');var qs=new URLSearchParams(location.search);
 var KEY_OPTIONS=['TELEGRAM_BOT_TOKEN','TELEGRAM_WEBHOOK_SECRET','PUBLIC_BASE_URL','OPENAI_API_KEY','OPENAI_MODEL','GEMINI_API_KEY','GEMINI_MODEL','GEMINI_ENABLED','TELEGRAM_AI_PROVIDER','AI_FALLBACK_PROVIDER','SONYA_BASE_PROMPT','GOOGLE_CLIENT_ID','GOOGLE_CLIENT_SECRET','GOOGLE_LOGIN_HINT','GOOGLE_GMAIL_ENABLED','GOOGLE_CALENDAR_ENABLED','RESEND_API_KEY','WEBLIBRARY_INBOX_ENDPOINT','DEFAULT_WEATHER_LOCATION'];

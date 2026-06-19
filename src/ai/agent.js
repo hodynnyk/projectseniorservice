@@ -1,9 +1,11 @@
 import { createItem, searchItems, listItems } from '../modules/items.js';
+import { getConversationContext, appendConversationTurn, clearConversationContext } from '../modules/conversation.js';
 import { askAI } from './router.js';
 import { parseLooseDueAt, formatShort } from '../utils/dates.js';
 import { logActivity } from '../services/activity.js';
 import { isWeatherIntent, getWeatherForText } from '../modules/weather.js';
 import { listGmailMessages, sendGmailMessage, listCalendarEvents, createCalendarEvent } from '../modules/google.js';
+import { getSetting } from '../modules/settings.js';
 import { askGemini } from '../modules/gemini.js';
 import { beforeAssistantReply, styleReply, ownerSystemPrompt, wantsSaveExplicitly, needsClarificationBeforeSave } from './personality.js';
 
@@ -15,6 +17,15 @@ export async function handleNaturalInput(env, user, text, source = 'bot') {
   if (!input) return finish({ text: user?.role === 'owner' ? 'Я поруч, сер. Напишіть команду або киньте думку — я акуратно розберу.' : 'Я поруч. Напиши команду або кинь задачу.' });
   const lower = input.toLowerCase();
   const explicitSave = wantsSaveExplicitly(lower);
+
+  if (hasAny(lower, ['очисти контекст','забудь цей діалог','сбрось контекст','clear context'])) {
+    await clearConversationContext(env, user, source);
+    return finish({ text: user?.role === 'owner' ? 'Контекст цього діалогу очищено, сер.' : 'Контекст діалогу очищено.' });
+  }
+
+  if (isMapsIntent(lower)) {
+    return finish(await handleMapsNatural(env, user, input, lower, source));
+  }
 
   if (isWeatherIntent(input)) {
     const result = await getWeatherForText(env, user, input, source);
@@ -38,15 +49,15 @@ ${result.text}` : result.text, ai: result });
     return finish(result);
   }
 
-  if (hasAny(lower, ['що сьогодні','что сегодня','today','план дня','сьогодні'])) {
+  if (isTodayOverviewIntent(lower)) {
     const active = (await listItems(env, user, { limit: 50 })).filter(x => x.status !== 'done').slice(0, 12);
     return finish({ text: active.length ? `Активне:\n${active.map((x,i)=>`${i+1}. ${x.title}${x.dueAt ? ' — '+formatShort(x.dueAt) : ''}`).join('\n')}` : 'Активних задач поки немає.' });
   }
 
-  if (starts(lower, ['знайди','найди','search'])) {
-    const q = input.replace(/^(знайди|найди|search)\s*/i, '').trim();
-    const results = await searchItems(env, user, q, 12);
-    return finish({ text: results.length ? `Знайшов:\n${results.map((x,i)=>`${i+1}. [${x.type}] ${x.title}`).join('\n')}` : 'Нічого не знайшов у пам’яті.' });
+  if (isMemorySearchIntent(lower)) {
+    const q = input.replace(/^(знайди|найди|search|пошукай)\s*/i, '').replace(/(у|в)\s+(памʼяті|пам'яті|памяті|замітках|нотатках|задачах|записах)/gi, '').trim();
+    const results = await searchItems(env, user, q || input, 12);
+    return finish({ text: results.length ? `Знайшла в памʼяті:\n${results.map((x,i)=>`${i+1}. [${x.type}] ${x.title}`).join('\n')}` : 'У своїй памʼяті нічого такого не знайшла.' });
   }
 
   if (hasAny(lower, ['нагадай','напомни','remind','через','завтра','tomorrow','кожного','каждый'])) {
@@ -108,15 +119,60 @@ ${result.text}` : result.text, ai: result });
     return finish({ text: `Нотатку збережено: ${item.title}`, item });
   }
 
-  const context = await searchItems(env, user, input.split(/\s+/).slice(0, 6).join(' '), 10);
+  const memoryContext = await searchItems(env, user, input.split(/\s+/).slice(0, 6).join(' '), 10);
+  const dialogContext = await getConversationContext(env, user, source);
+  await appendConversationTurn(env, user, source, 'user', input, { kind: 'message' });
   const ai = await askAI(env, user, {
-    instructions: `Ти приватна сімейна AI-помічниця Соня у системі projectseniorservice. Відповідай коротко, людською українською/російською/суржиком залежно від мови користувача. ${ownerSystemPrompt(user, persona.next)} Якщо треба діяти — дій тільки коли намір явний. Якщо користувач просто питає або роздумує, не зберігай це автоматично. Не вигадуй приватні дані. Для тренувань і раціону поводься як обережна персональна помічниця: уточнюй самопочуття, не давай медичних гарантій, не зберігай їжу/тренування без явного наміру.`,
+    instructions: `Ти приватна сімейна AI-помічниця Соня у системі projectseniorservice. Відповідай коротко, людською українською/російською/суржиком залежно від мови користувача. ${ownerSystemPrompt(user, persona.next)} Ти маєш короткий rolling-контекст поточного діалогу: використовуй його, щоб не відповідати деревʼяно і не плутати пошук місць із пошуком задач. Якщо треба діяти — дій тільки коли намір явний. Якщо користувач просто питає або роздумує, не зберігай це автоматично як задачу. Не вигадуй приватні дані. Для тренувань і раціону поводься як обережна персональна помічниця: уточнюй самопочуття, не давай медичних гарантій, не зберігай їжу/тренування без явного наміру.`,
     input,
-    context: context.map(x => ({ type: x.type, title: x.title, content: x.content, dueAt: x.dueAt, tags: x.tags })),
+    context: [
+      ...dialogContext.map(x => ({ type: 'dialog', role: x.role, content: x.text, at: x.at })),
+      ...memoryContext.map(x => ({ type: x.type, title: x.title, content: x.content, dueAt: x.dueAt, tags: x.tags }))
+    ],
     source
   });
-  await logActivity(env, { userId: user.id, source, module: 'ai', action: 'chat', message: input.slice(0,120), metadata: { ok: ai.ok, provider: ai.provider, responseId: ai.rawId, router: ai.router } });
-  return finish({ text: ai.text || 'Не змогла отримати відповідь від AI.', ai });
+  const textOut = ai.text || 'Не змогла отримати відповідь від AI.';
+  await appendConversationTurn(env, user, source, 'assistant', textOut, { provider: ai.provider || '' });
+  await logActivity(env, { userId: user.id, source, module: 'ai', action: 'chat', message: input.slice(0,120), metadata: { ok: ai.ok, provider: ai.provider, responseId: ai.rawId, router: ai.router, dialogTurns: dialogContext.length } });
+  return finish({ text: textOut, ai });
+}
+
+
+function isTodayOverviewIntent(lower) {
+  const s = String(lower || '').trim();
+  return /^(що сьогодні|что сегодня|today|план дня|мій день|мой день)\??$/.test(s)
+    || /^(покажи|дай|відкрий|открой)\s+(план|задачі|задачи)\s+(на\s+)?сьогодні/.test(s);
+}
+
+function isMemorySearchIntent(lower) {
+  const s = String(lower || '');
+  if (!starts(s, ['знайди','найди','search','пошукай'])) return false;
+  return hasAny(s, ['в пам', 'у пам', 'памʼят', "пам'ят", 'памят', 'нотат', 'замет', 'запис', 'задач']);
+}
+
+function isMapsIntent(lower) {
+  const s = String(lower || '');
+  const placeWords = ['де поїсти','де поесть','по вечер','повечер','вечерят','пообідати','пообедать','кафе','ресторан','суші','суши','піца','пицц','аптека','магазин','заправка','сто ','шиномонтаж','барбер','перукар','google maps','гугл карт','карти','карта','маршрут','поруч','рядом','near me'];
+  if (placeWords.some(k => s.includes(k))) return true;
+  return /^(знайди|найди|пошукай|search)\s+(де|куди|кафе|ресторан|аптек|магазин|заправ)/.test(s);
+}
+
+async function handleMapsNatural(env, user, input, lower, source) {
+  const baseLocation = await getSetting(env, 'DEFAULT_MAPS_LOCATION', '') || await getSetting(env, 'DEFAULT_WEATHER_LOCATION', '') || env.DEFAULT_MAPS_LOCATION || 'Обухів, Київська область';
+  const clean = String(input || '').replace(/^(знайди|найди|пошукай|search)\s*/i, '').replace(/\b(сьогодні|сегодня|мені|мне|будь ласка|пожалуйста)\b/gi, '').replace(/\s+/g, ' ').trim();
+  let query = clean || input;
+  if (!hasKnownLocation(lower)) query = `${query} ${baseLocation}`;
+  const mapsSearch = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+  const mapsFood = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('restaurants cafes ' + (hasKnownLocation(lower) ? clean : baseLocation))}`;
+  await logActivity(env, { userId: user.id, source, module: 'maps', action: 'maps_link', message: query, metadata: { mapsSearch } });
+  const prefix = user?.role === 'owner' ? 'Сер, це вже не шукаю серед задач — відкриваю як запит до Google Maps.' : 'Шукаю це як місце на Google Maps.';
+  return {
+    text: `${prefix}\n\nОсновний пошук:\n${mapsSearch}\n\nЯкщо хочете саме вечерю/кафе поруч:\n${mapsFood}\n\nПізніше можу підключити Google Places API, щоб давати вже список закладів прямо в чаті.`
+  };
+}
+
+function hasKnownLocation(lower) {
+  return hasAny(lower, ['київ','киев','обухів','обухов','українк','украинка','васильків','васильков','бровар','ірпін','ирпень','львів','львов','одес','харків','харьков']);
 }
 
 function starts(s, arr) { return arr.some(x => s.startsWith(x)); }

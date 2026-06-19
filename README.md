@@ -58,7 +58,7 @@ Telegram Bot replies without automatic Mini App button. The panel is expected to
 - It checks whether `/api/google/callback` is present in Authorized redirect URIs.
 
 
-## v20 clean Mini App / normal Admin login
+## v21 clean Mini App / normal Admin login
 - Mini App redesigned as a clean read-only dashboard: no ask box, no creation forms, no noisy extra buttons.
 - Mini App shows only: Today, open tasks, body/food journal, and system status.
 - Admin UI opens normally on `/admin`, but the public screen only accepts admin secret; owner-code login was removed from the admin screen.
@@ -66,16 +66,25 @@ Telegram Bot replies without automatic Mini App button. The panel is expected to
 - R2 remains disabled; images are embedded as compressed Worker assets.
 
 
-## v20 Admin hotfix
+## v21 Admin hotfix
 - Fixed the over-aggressive v18 admin gate.
 - `/admin` opens the admin login again.
 - Removed owner-code login button from the admin screen.
 - Mini App remains clean/read-only from v18.
 
 
-## v20 Mini App JSON fix
+## v21 Mini App JSON fix
 - Fixed Mini App login error display: no more raw `Bad JSON` text.
 - Mini App now reads API responses as text first and safely parses JSON.
 - Network/404/non-JSON cases are converted into human messages.
 - `/admin` remains normally available from v19.
 - Clean Mini App read-only layout remains.
+
+
+## v21 smart Telegram / voice / maps / dialog memory
+- Telegram bot no longer treats every `знайди ...` as a memory search.
+- Google Maps intent added for food/places/routes: returns Maps search links instead of active tasks.
+- Rolling conversation context added per user/source, so Sonya remembers recent dialog turns.
+- Voice messages are supported without R2: Telegram file -> temporary OpenAI transcription -> text -> normal Sonya brain.
+- Audio files are not stored.
+- Mini App remains clean from v20; admin remains open normally from v19.

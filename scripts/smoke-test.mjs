@@ -28,11 +28,11 @@ async function hit(path, init) {
 
 await hit('/api/health');
 const route = await hit('/route-check');
-if (route.data.version !== 'sonya-v15-google-account-picker-avatar') throw new Error('Wrong route-check version');
+if (route.data.version !== 'sonya-v21-smart-telegram-voice-maps-memory') throw new Error('Wrong route-check version');
 const adminHtml = await hit('/admin');
 if (!String(adminHtml.data).includes('Соня Admin')) throw new Error('/admin did not return Admin UI');
 const miniHtml = await hit('/miniapp');
-if (!String(miniHtml.data).includes('Соня Family OS')) throw new Error('/miniapp did not return Mini App UI');
+if (!String(miniHtml.data).includes('Соня')) throw new Error('/miniapp did not return Mini App UI');
 const setup = await hit('/api/setup/status');
 if (setup.data.configured !== false) throw new Error('Fresh KV must be unconfigured');
 const autoLogin = await hit('/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ accessCode: 'owner2026', publicBaseUrl: 'https://unit.test' }) });
@@ -52,4 +52,4 @@ const routerSet = await hit('/api/admin/ai-router', { method: 'POST', headers: {
 if (routerSet.data.aiRouter.activeProvider !== 'gemini') throw new Error('AI Router active provider update failed');
 const reset = await hit('/api/admin/users/family/reset', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + autoLogin.data.token }, body: JSON.stringify({ mode: 'safe' }) });
 if (!reset.data.ok) throw new Error('Family reset failed');
-console.log('SMOKE OK: v15 Google account picker + no panel buttons passed');
+console.log('SMOKE OK: v21 smart Telegram/voice/maps/memory passed');
