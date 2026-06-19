@@ -16,6 +16,7 @@ export async function googleStatus(env, user) {
   const token = user?.id ? await getRefreshToken(env, user.id) : '';
   const publicUrl = await getPublicBaseUrl(env);
   const clientIdLooksValid = looksLikeGoogleOAuthClientId(clientId);
+  const loginHint = String(await getApiKeyValue(env, 'GOOGLE_LOGIN_HINT') || '').trim();
   return {
     configured: !!(clientIdLooksValid && clientSecret),
     connected: !!token,
@@ -23,15 +24,20 @@ export async function googleStatus(env, user) {
     clientIdLooksValid,
     clientIdHint: maskGoogleClientId(clientId),
     clientSecretConfigured: !!clientSecret,
+    loginHint: loginHint ? maskEmail(loginHint) : '',
+    multiAccountSafe: true,
+    promptMode: 'consent select_account',
     scopes: ['gmail.readonly', 'gmail.send', 'gmail.modify', 'calendar.events', 'calendar.readonly'],
     redirectUri: `${publicUrl}/api/google/callback`,
-    setupHint: 'GOOGLE_CLIENT_ID must be an OAuth 2.0 Web Client ID ending with .apps.googleusercontent.com. Do not use API key, refresh token, or client secret here.'
+    setupHint: 'GOOGLE_CLIENT_ID must be an OAuth 2.0 Web Client ID ending with .apps.googleusercontent.com. For PCs with many Google accounts Sonya uses prompt=consent select_account and optional GOOGLE_LOGIN_HINT.'
   };
 }
 
-export async function googleAuthUrl(env, user) {
+export async function googleAuthUrl(env, user, options = {}) {
   const clientId = await getApiKeyValue(env, 'GOOGLE_CLIENT_ID');
   const publicUrl = await getPublicBaseUrl(env);
+  const rawHint = String(options.loginHint || await getApiKeyValue(env, 'GOOGLE_LOGIN_HINT') || '').trim();
+  const loginHint = looksLikeEmail(rawHint) ? rawHint : '';
   if (!clientId) return { ok: false, error: 'GOOGLE_CLIENT_ID is missing in Admin > API Keys' };
   if (!looksLikeGoogleOAuthClientId(clientId)) return { ok: false, error: 'GOOGLE_CLIENT_ID is wrong. It must be OAuth 2.0 Web Client ID from Google Cloud and end with .apps.googleusercontent.com. This is why Google showed invalid_client.', redirectUri: `${publicUrl}/api/google/callback`, clientIdHint: maskGoogleClientId(clientId) };
   if (!publicUrl) return { ok: false, error: 'PUBLIC_BASE_URL is missing in Admin > API Keys or setup' };
@@ -41,10 +47,11 @@ export async function googleAuthUrl(env, user) {
   url.searchParams.set('response_type', 'code');
   url.searchParams.set('scope', GOOGLE_SCOPES.join(' '));
   url.searchParams.set('access_type', 'offline');
-  url.searchParams.set('prompt', 'consent');
+  url.searchParams.set('prompt', 'consent select_account');
   url.searchParams.set('include_granted_scopes', 'true');
   url.searchParams.set('state', user.id);
-  return { ok: true, url: url.toString(), scopes: GOOGLE_SCOPES };
+  if (loginHint) url.searchParams.set('login_hint', loginHint);
+  return { ok: true, url: url.toString(), scopes: GOOGLE_SCOPES, promptMode: 'consent select_account', loginHint: loginHint ? maskEmail(loginHint) : '' };
 }
 
 export async function googleCallback(env, code, state) {
@@ -65,6 +72,14 @@ export async function googleCallback(env, code, state) {
   }
   await logActivity(env, { userId: state, source: 'google', module: 'google', action: res.ok ? 'oauth_connected' : 'oauth_error', message: String(data.error || 'callback'), metadata: { scope: data.scope || '', hasRefreshToken: !!data.refresh_token } });
   return { ok: res.ok, status: res.status, data: { ...data, access_token: data.access_token ? '[hidden]' : undefined, refresh_token: data.refresh_token ? '[saved]' : undefined } };
+}
+
+export async function googleDisconnect(env, user) {
+  if (!user?.id) return { ok: false, error: 'User context missing' };
+  await setSetting(env, { id: user.id }, `google_refresh_token:${user.id}`, '', true);
+  await setSetting(env, { id: user.id }, `google_connected_at:${user.id}`, '', false);
+  await logActivity(env, { userId: user.id, source: 'google', module: 'google', action: 'oauth_disconnected', message: 'Google OAuth token cleared' });
+  return { ok: true, disconnected: true };
 }
 
 export async function listGmailMessages(env, user, options = {}) {
@@ -232,6 +247,16 @@ function failGoogle(code, status, data) {
 function looksLikeGoogleOAuthClientId(value) {
   const v = String(value || '').trim();
   return /^[0-9a-zA-Z_-]+-[0-9a-zA-Z_-]+\.apps\.googleusercontent\.com$/.test(v) || /^[0-9]+-[0-9a-zA-Z_-]+\.apps\.googleusercontent\.com$/.test(v);
+}
+
+function looksLikeEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+}
+
+function maskEmail(value) {
+  const v = String(value || '').trim();
+  const m = v.match(/^([^@]{1,3})[^@]*(@.*)$/);
+  return m ? `${m[1]}•••${m[2]}` : '';
 }
 
 function maskGoogleClientId(value) {

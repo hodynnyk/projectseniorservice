@@ -149,7 +149,7 @@ export async function sendMessage(env, chatId, text, replyMarkup = undefined) {
 }
 
 export async function miniAppKeyboard(env) {
-  // v14: Telegram bot replies with clean contextual text only.
+  // v15: Telegram bot replies with clean contextual text only.
   // The Mini App is opened separately through Telegram Mini Apps / bot menu.
   return undefined;
 }

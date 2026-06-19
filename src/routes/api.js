@@ -7,7 +7,7 @@ import { listActivity } from '../services/activity.js';
 import { listApiKeys, setApiKey, deleteApiKey, listModules, setModuleEnabled, setSetting, getSetup, getApiKeyValue } from '../modules/settings.js';
 import { createMailAccount, listMailAccounts, getInbox, sendMail } from '../modules/mail.js';
 import { uploadFile, listFiles, downloadFile, r2Status } from '../modules/files.js';
-import { googleAuthUrl, googleCallback, googleStatus, listGmailMessages, readGmailMessage, sendGmailMessage, listCalendarEvents, createCalendarEvent } from '../modules/google.js';
+import { googleAuthUrl, googleCallback, googleStatus, googleDisconnect, listGmailMessages, readGmailMessage, sendGmailMessage, listCalendarEvents, createCalendarEvent } from '../modules/google.js';
 import { geminiStatus, askGemini } from '../modules/gemini.js';
 import { getAiRouterConfig, setAiRouterConfig, testAiRouter } from '../ai/router.js';
 import { runReminderSweep } from '../services/reminders.js';
@@ -21,7 +21,7 @@ export async function handleApi(env, request, ctx) {
 
   if (path === '/api/health') {
     const setup = await getSetup(env);
-    return json({ ok: true, service: 'projectseniorservice', version: 'sonya-v14-telegram-no-panel-buttons', time: new Date().toISOString(), configured: !!setup?.configured, bindings: { kv: !!env.SONYA_KV, d1: !!env.DB, files: 'metadata_only', google: true, gemini: true } });
+    return json({ ok: true, service: 'projectseniorservice', version: 'sonya-v15-google-account-picker-avatar', time: new Date().toISOString(), configured: !!setup?.configured, bindings: { kv: !!env.SONYA_KV, d1: !!env.DB, files: 'metadata_only', google: true, gemini: true } });
   }
 
   if (path === '/api/setup/status') return json({ ok: true, configured: await isConfigured(env), setup: sanitizeSetup(await getSetup(env)) });
@@ -87,7 +87,8 @@ export async function handleApi(env, request, ctx) {
   if (fileMatch && method === 'GET') return downloadFile(env, user, fileMatch[1]);
 
   if (path === '/api/google/status') return json({ ok: true, status: await googleStatus(env, user), gemini: await geminiStatus(env) });
-  if (path === '/api/google/auth-url') return json(await googleAuthUrl(env, user));
+  if (path === '/api/google/auth-url') return json(await googleAuthUrl(env, user, { loginHint: url.searchParams.get('login_hint') || '' }));
+  if (path === '/api/google/disconnect' && method === 'POST') return json(await googleDisconnect(env, user));
   if (path === '/api/google/gmail/list') return json(await listGmailMessages(env, user, Object.fromEntries(url.searchParams)));
   const gmailReadMatch = path.match(/^\/api\/google\/gmail\/messages\/([^/]+)$/);
   if (gmailReadMatch && method === 'GET') return json(await readGmailMessage(env, user, gmailReadMatch[1]));

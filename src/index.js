@@ -15,8 +15,8 @@ export default {
       if (path === '/assets/sonya-anime.webp') return sonyaAnimeResponse();
       if (path === '/miniapp') return html(miniAppHtml());
       if (['/admin','/setup','/__admin','/sonya-admin','/admin-panel'].includes(path)) return html(adminHtml());
-      if (path === '/route-check') return json({ ok: true, version: 'sonya-v14-telegram-no-panel-buttons', routes: { admin: '/admin', setup: '/setup', miniapp: '/miniapp' }, time: new Date().toISOString() });
-      if (path === '/health') return json({ ok: true, service: 'projectseniorservice', version: 'sonya-v14-telegram-no-panel-buttons', route: 'health', time: new Date().toISOString() });
+      if (path === '/route-check') return json({ ok: true, version: 'sonya-v15-google-account-picker-avatar', routes: { admin: '/admin', setup: '/setup', miniapp: '/miniapp' }, time: new Date().toISOString() });
+      if (path === '/health') return json({ ok: true, service: 'projectseniorservice', version: 'sonya-v15-google-account-picker-avatar', route: 'health', time: new Date().toISOString() });
       if (path === '/robots.txt') return text('User-agent: *\nDisallow: /\n');
       if (path.startsWith('/telegram/webhook')) {
         await ensureStorage(env);
